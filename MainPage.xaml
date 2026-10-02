@@ -2,18 +2,9 @@
 <ContentPage xmlns="http://schemas.microsoft.com/dotnet/2021/maui"
              xmlns:x="http://schemas.microsoft.com/winfx/2009/xaml"
              x:Class="TermHost.MainPage"
-             BackgroundColor="#2D2D2D">
+             BackgroundColor="#181825">
 
-    <Grid RowDefinitions="Auto,*">
-        <HorizontalStackLayout Padding="8,6" Spacing="8">
-            <Picker x:Name="ShellPicker" WidthRequest="190" VerticalOptions="Center" />
-            <Button Text="+ New terminal" Clicked="OnNewClicked" BackgroundColor="#444444" TextColor="White" />
-            <BoxView WidthRequest="1" Color="#555555" Margin="4,4" />
-            <Button x:Name="TabsButton" Text="Tabs" Clicked="OnTabsClicked" TextColor="White" />
-            <Button x:Name="TileButton" Text="Tile evenly" Clicked="OnTileClicked" TextColor="White" />
-        </HorizontalStackLayout>
-
-        <HybridWebView x:Name="Web" Grid.Row="1" RawMessageReceived="OnRawMessageReceived" />
-    </Grid>
+    <!-- Tabs, toolbar, settings and the terminals themselves all live in wwwroot/index.html -->
+    <HybridWebView x:Name="Web" RawMessageReceived="OnRawMessageReceived" />
 
 </ContentPage>

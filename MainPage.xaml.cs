@@ -1,13 +1,16 @@
+using System.Text;
 using System.Text.Json;
+using System.Text.Json.Nodes;
 
 namespace TermHost;
 
 public partial class MainPage : ContentPage
 {
-	static readonly Color ActiveColor = Color.FromArgb("#0E639C");
-	static readonly Color IdleColor = Color.FromArgb("#444444");
+	enum ShellKind { PowerShell, Cmd, Wsl }
 
-	readonly List<(string Name, string Command)> _shells = FindShells();
+	record Shell(string Name, string Command, ShellKind Kind);
+
+	readonly List<Shell> _shells = FindShells();
 	// Terminals announced to the web view but not yet started: id -> command line.
 	readonly Dictionary<int, string> _pending = new();
 	readonly Dictionary<int, ConPtySession> _sessions = new();
@@ -16,9 +19,6 @@ public partial class MainPage : ContentPage
 	public MainPage()
 	{
 		InitializeComponent();
-		ShellPicker.ItemsSource = _shells.Select(s => s.Name).ToList();
-		ShellPicker.SelectedIndex = 0;
-		SetLayout("tabs");
 	}
 
 	public void CloseAll()
@@ -28,27 +28,50 @@ public partial class MainPage : ContentPage
 		_sessions.Clear();
 	}
 
-	void OnNewClicked(object? sender, EventArgs e) => NewTerminal();
+	Shell DefaultShell =>
+		_shells.FirstOrDefault(s => s.Name == Preferences.Default.Get("shell", "")) ?? _shells[0];
 
-	void OnTabsClicked(object? sender, EventArgs e) => SetLayout("tabs");
-
-	void OnTileClicked(object? sender, EventArgs e) => SetLayout("grid");
-
-	void SetLayout(string mode)
+	void SendInit()
 	{
-		TabsButton.BackgroundColor = mode == "tabs" ? ActiveColor : IdleColor;
-		TileButton.BackgroundColor = mode == "grid" ? ActiveColor : IdleColor;
-		Web.SendRawMessage($"{{\"t\":\"layout\",\"mode\":\"{mode}\"}}");
+		var init = new JsonObject
+		{
+			["t"] = "init",
+			["shells"] = new JsonArray(_shells.Select(s => (JsonNode)s.Name).ToArray()),
+			["settings"] = new JsonObject
+			{
+				["shell"] = DefaultShell.Name,
+				["program"] = Preferences.Default.Get("program", ""),
+				["theme"] = Preferences.Default.Get("theme", "Catppuccin Mocha"),
+				["layout"] = Preferences.Default.Get("layout", "tabs"),
+			},
+		};
+		Web.SendRawMessage(init.ToJsonString());
 	}
 
 	// The web view sizes the terminal first, then asks us to start the shell at that size.
 	void NewTerminal()
 	{
-		var shell = _shells[Math.Max(ShellPicker.SelectedIndex, 0)];
+		var shell = DefaultShell;
+		var program = Preferences.Default.Get("program", "").Trim();
 		int id = _nextId++;
-		_pending[id] = shell.Command;
-		var title = JsonEncodedText.Encode($"{shell.Name} {id}");
+		_pending[id] = CommandLine(shell, program);
+		var name = program.Length == 0 ? shell.Name : program.Length > 24 ? program[..24] + "…" : program;
+		var title = JsonEncodedText.Encode($"{name} {id}");
 		Web.SendRawMessage($"{{\"t\":\"new\",\"id\":{id},\"title\":\"{title}\"}}");
+	}
+
+	// Runs the startup program inside the shell and leaves the shell open when it ends.
+	static string CommandLine(Shell shell, string program)
+	{
+		if (program.Length == 0)
+			return shell.Command;
+		return shell.Kind switch
+		{
+			// Encoded so quotes and spaces in the program survive command-line parsing.
+			ShellKind.PowerShell => $"{shell.Command} -NoExit -EncodedCommand {Convert.ToBase64String(Encoding.Unicode.GetBytes(program))}",
+			ShellKind.Cmd => $"{shell.Command} /K \"{program}\"",
+			_ => $"{shell.Command} -e bash -lic \"{program.Replace("\"", "\\\"")}; exec bash\"",
+		};
 	}
 
 	void OnRawMessageReceived(object? sender, HybridWebViewRawMessageReceivedEventArgs e)
@@ -57,34 +80,68 @@ public partial class MainPage : ContentPage
 			return;
 		using var doc = JsonDocument.Parse(e.Message);
 		var msg = doc.RootElement;
-		var type = msg.GetProperty("t").GetString();
+		string Text(string name) => msg.GetProperty(name).GetString() ?? "";
+		int Number(string name) => msg.GetProperty(name).GetInt32();
 
-		if (type == "ready")
+		switch (Text("t"))
 		{
-			NewTerminal();
-			return;
-		}
-
-		int id = msg.GetProperty("id").GetInt32();
-		switch (type)
-		{
+			case "ready":
+				SendInit();
+				NewTerminal();
+				break;
+			case "new":
+				NewTerminal();
+				break;
+			case "settings":
+				foreach (var key in new[] { "shell", "program", "theme", "layout" })
+					Preferences.Default.Set(key, Text(key));
+				break;
+			case "chrome":
+				ApplyChrome(Text("bg"), Text("fg"), msg.GetProperty("dark").GetBoolean());
+				break;
 			case "start":
-				Start(id, msg.GetProperty("cols").GetInt32(), msg.GetProperty("rows").GetInt32());
+				Start(Number("id"), Number("cols"), Number("rows"));
 				break;
 			case "in":
-				if (_sessions.TryGetValue(id, out var target))
-					target.Write(msg.GetProperty("d").GetString() ?? "");
+				if (_sessions.TryGetValue(Number("id"), out var target))
+					target.Write(Text("d"));
 				break;
 			case "resize":
-				if (_sessions.TryGetValue(id, out var resized))
-					resized.Resize(msg.GetProperty("cols").GetInt32(), msg.GetProperty("rows").GetInt32());
+				if (_sessions.TryGetValue(Number("id"), out var resized))
+					resized.Resize(Number("cols"), Number("rows"));
 				break;
 			case "close":
-				_pending.Remove(id);
-				if (_sessions.Remove(id, out var closed))
+				_pending.Remove(Number("id"));
+				if (_sessions.Remove(Number("id"), out var closed))
 					closed.Dispose();
 				break;
 		}
+	}
+
+	// Keeps the native window chrome in step with the theme chosen in the web view.
+	void ApplyChrome(string background, string foreground, bool dark)
+	{
+		if (!Color.TryParse(background, out var bg) || !Color.TryParse(foreground, out var fg))
+			return;
+		BackgroundColor = bg;
+		if (Application.Current is { } app)
+			app.UserAppTheme = dark ? AppTheme.Dark : AppTheme.Light;
+		if (Window?.TitleBar is TitleBar bar)
+		{
+			bar.BackgroundColor = bg;
+			bar.ForegroundColor = fg;
+		}
+#if WINDOWS
+		// The minimise/maximise/close glyphs do not follow the title bar's foreground on their own.
+		if (Window?.Handler?.PlatformView is Microsoft.UI.Xaml.Window native)
+		{
+			var glyph = Windows.UI.Color.FromArgb(255, (byte)(fg.Red * 255), (byte)(fg.Green * 255), (byte)(fg.Blue * 255));
+			var caption = native.AppWindow.TitleBar;
+			caption.ButtonForegroundColor = glyph;
+			caption.ButtonInactiveForegroundColor = glyph;
+			caption.ButtonHoverForegroundColor = glyph;
+		}
+#endif
 	}
 
 	void Start(int id, int cols, int rows)
@@ -100,7 +157,7 @@ public partial class MainPage : ContentPage
 		}
 		catch (Exception ex)
 		{
-			SendOutput(id, System.Text.Encoding.UTF8.GetBytes($"Failed to start '{command}': {ex.Message}\r\n"));
+			SendOutput(id, Encoding.UTF8.GetBytes($"Failed to start '{command}': {ex.Message}\r\n"));
 			return;
 		}
 
@@ -119,15 +176,15 @@ public partial class MainPage : ContentPage
 	void SendOutput(int id, byte[] data) =>
 		Web.SendRawMessage($"{{\"t\":\"out\",\"id\":{id},\"d\":\"{Convert.ToBase64String(data)}\"}}");
 
-	static List<(string Name, string Command)> FindShells()
+	static List<Shell> FindShells()
 	{
-		var shells = new List<(string, string)>();
+		var shells = new List<Shell>();
 		if (OnPath("pwsh.exe"))
-			shells.Add(("PowerShell 7", "pwsh.exe -NoLogo"));
-		shells.Add(("Windows PowerShell", "powershell.exe -NoLogo"));
-		shells.Add(("Command Prompt", "cmd.exe"));
+			shells.Add(new("PowerShell 7", "pwsh.exe -NoLogo", ShellKind.PowerShell));
+		shells.Add(new("Windows PowerShell", "powershell.exe -NoLogo", ShellKind.PowerShell));
+		shells.Add(new("Command Prompt", "cmd.exe", ShellKind.Cmd));
 		if (OnPath("wsl.exe"))
-			shells.Add(("WSL", "wsl.exe"));
+			shells.Add(new("WSL", "wsl.exe", ShellKind.Wsl));
 		return shells;
 	}
 

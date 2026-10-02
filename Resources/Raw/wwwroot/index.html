@@ -4,52 +4,199 @@
 <meta charset="utf-8">
 <link rel="stylesheet" href="xterm.css">
 <style>
-  html, body { height: 100%; margin: 0; overflow: hidden; background: #1e1e1e; color: #ccc; font: 13px "Segoe UI", sans-serif; }
+  :root {
+    --bg: #1e1e2e; --chrome: #181825; --surface: #313244; --border: #45475a;
+    --fg: #cdd6f4; --muted: #a6adc8; --accent: #cba6f7; --accent-fg: #181825;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; margin: 0; overflow: hidden; background: var(--chrome); color: var(--fg); font: 13px "Segoe UI Variable Text", "Segoe UI", sans-serif; }
   body { display: flex; flex-direction: column; }
+  button { font: inherit; color: inherit; border: 0; background: none; padding: 0; cursor: pointer; outline: none; }
+  button:focus-visible { box-shadow: 0 0 0 2px var(--accent); }
+  .icon { width: 16px; height: 16px; flex: none; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
 
-  #tabs { display: flex; flex: none; overflow-x: auto; background: #2d2d2d; }
+  /* Top bar */
+  #bar { flex: none; display: flex; align-items: center; gap: 8px; height: 40px; padding: 0 8px; }
+  #tabs { flex: 1; min-width: 0; display: flex; gap: 4px; overflow-x: auto; scrollbar-width: none; }
+  #brand { flex: 1; display: none; align-items: center; gap: 8px; padding-left: 4px; color: var(--muted); }
+  #brand .icon { color: var(--accent); }
   body.grid #tabs { display: none; }
-  .tab { padding: 6px 10px; cursor: pointer; white-space: nowrap; user-select: none; border-right: 1px solid #1e1e1e; }
-  .tab.active { background: #1e1e1e; color: #fff; }
-  .close { margin-left: 8px; opacity: .6; cursor: pointer; }
-  .close:hover { opacity: 1; }
+  body.grid #brand { display: flex; }
 
-  #panes { flex: 1; min-height: 0; display: grid; gap: 2px; background: #444; }
-  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #1e1e1e; }
+  .tab { flex: none; display: flex; align-items: center; gap: 7px; height: 28px; padding: 0 5px 0 10px; border-radius: 7px; color: var(--muted); white-space: nowrap; user-select: none; cursor: pointer; }
+  .tab:hover { background: var(--surface); }
+  .tab.active { background: var(--bg); color: var(--fg); box-shadow: inset 0 0 0 1px var(--border); }
+  .tab.active > .icon { color: var(--accent); }
+  .close { display: grid; place-items: center; width: 18px; height: 18px; border-radius: 5px; color: var(--muted); opacity: 0; }
+  .close .icon { width: 12px; height: 12px; }
+  .close:hover { background: var(--border); color: var(--fg); }
+  .tab:hover .close, .tab.active .close, .head .close { opacity: 1; }
+
+  #actions { flex: none; display: flex; align-items: center; gap: 4px; }
+  .btn { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--muted); }
+  .btn:hover { background: var(--surface); color: var(--fg); }
+  #new { color: var(--accent); }
+  #layout { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); }
+  #layout span { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; color: var(--muted); transition: background .15s, color .15s; }
+  body.tabs #layout span:first-child, body.grid #layout span:last-child { background: var(--accent); color: var(--accent-fg); }
+
+  /* Tooltips */
+  [data-tip] { position: relative; }
+  [data-tip]::after {
+    content: attr(data-tip); position: absolute; top: calc(100% + 8px); right: 0; z-index: 20;
+    padding: 5px 9px; border-radius: 6px; background: var(--surface); color: var(--fg); box-shadow: 0 0 0 1px var(--border), 0 6px 16px rgb(0 0 0 / .35);
+    font-size: 12px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s;
+  }
+  [data-tip]:hover::after { opacity: 1; transition-delay: .35s; }
+
+  /* Terminals */
+  #panes { flex: 1; min-height: 0; display: grid; gap: 6px; padding: 0 6px 6px; }
+  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
   body.tabs .pane:not(.active) { display: none; }
-  .head { display: none; flex: none; justify-content: space-between; padding: 2px 8px; background: #2d2d2d; user-select: none; }
+  body.grid .pane.active { border-color: var(--accent); }
+  .head { display: none; flex: none; align-items: center; gap: 7px; height: 26px; padding: 0 4px 0 10px; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--surface) 45%, var(--bg)); user-select: none; }
+  .head .title { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
   body.grid .head { display: flex; }
-  body.grid .pane.active .head { background: #0e639c; color: #fff; }
-  .term { flex: 1; min-height: 0; padding: 4px; overflow: hidden; }
+  body.grid .pane.active .head { color: var(--fg); }
+  body.grid .pane.active .head > .icon { color: var(--accent); }
+  .term { flex: 1; min-height: 0; padding: 6px 2px 4px 8px; overflow: hidden; }
+
+  #empty { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); }
+  #empty button { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--surface); color: var(--accent); }
+  #empty button:hover { background: var(--border); }
+  #empty .icon { width: 26px; height: 26px; }
+  body.empty #panes { display: none; }
+  body.empty #empty { display: flex; }
+
+  /* Settings */
+  dialog { width: 460px; max-width: calc(100vw - 32px); padding: 18px 20px 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--chrome); color: var(--fg); box-shadow: 0 24px 60px rgb(0 0 0 / .5); }
+  dialog::backdrop { background: rgb(0 0 0 / .45); backdrop-filter: blur(3px); }
+  .dlg-head { display: flex; align-items: center; gap: 9px; margin-bottom: 14px; }
+  .dlg-head > .icon { color: var(--accent); }
+  .dlg-head h2 { flex: 1; margin: 0; font-size: 15px; font-weight: 600; }
+  .field { display: block; margin-top: 12px; font-size: 12px; color: var(--muted); }
+  select, input { display: block; width: 100%; margin-top: 5px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--fg); font: inherit; outline: none; }
+  input { font-family: "Cascadia Mono", Consolas, monospace; }
+  select:focus, input:focus { border-color: var(--accent); }
+  .hint { margin: 5px 0 0; font-size: 12px; color: var(--muted); opacity: .8; }
+  #themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
+  .swatch { display: flex; flex-direction: column; gap: 7px; padding: 9px; border-radius: 9px; border: 2px solid transparent; text-align: left; font-size: 11px; line-height: 1.2; }
+  .swatch.selected { border-color: var(--accent); }
+  .swatch i { display: flex; gap: 3px; }
+  .swatch b { width: 9px; height: 9px; border-radius: 50%; }
 </style>
 </head>
 <body class="tabs">
-<div id="tabs"></div>
+
+<svg style="display:none">
+  <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
+  <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
+  <symbol id="i-tabs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M10 3v6"/></symbol>
+  <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
+</svg>
+
+<header id="bar">
+  <div id="tabs"></div>
+  <div id="brand"><svg class="icon"><use href="#i-terminal"/></svg><span id="count"></span></div>
+  <div id="actions">
+    <button id="new" class="btn" data-tip="New terminal" aria-label="New terminal"><svg class="icon"><use href="#i-plus"/></svg></button>
+    <button id="layout" role="switch" aria-label="Tile terminals evenly">
+      <span><svg class="icon"><use href="#i-tabs"/></svg></span>
+      <span><svg class="icon"><use href="#i-grid"/></svg></span>
+    </button>
+    <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
+  </div>
+</header>
+
 <div id="panes"></div>
+<div id="empty">
+  <button id="empty-new" title="New terminal" aria-label="New terminal"><svg class="icon"><use href="#i-plus"/></svg></button>
+  <span>No terminals open</span>
+</div>
+
+<dialog id="dialog">
+  <div class="dlg-head">
+    <svg class="icon"><use href="#i-settings"/></svg>
+    <h2>Settings</h2>
+    <button id="dialog-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+  </div>
+  <label class="field">Default terminal<select id="shell"></select></label>
+  <label class="field">Startup program<input id="program" autofocus spellcheck="false" autocomplete="off" placeholder="claude, copilot, .\scripts\dev.ps1 …"></label>
+  <p class="hint">Runs in every new terminal. Leave empty for a plain shell.</p>
+  <div class="field">Theme</div>
+  <div id="themes"></div>
+</dialog>
 
 <script src="_framework/hybridwebview.js"></script>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
 <script>
-  const tabsEl = document.getElementById('tabs');
-  const panesEl = document.getElementById('panes');
+  // ansi: the 16 terminal colours, black..white then their bright variants.
+  const THEMES = {
+    'Catppuccin Mocha': { dark: true, bg: '#1e1e2e', chrome: '#181825', surface: '#313244', border: '#45475a', fg: '#cdd6f4', muted: '#a6adc8', accent: '#cba6f7',
+      ansi: '#45475a #f38ba8 #a6e3a1 #f9e2af #89b4fa #f5c2e7 #94e2d5 #bac2de #585b70 #f38ba8 #a6e3a1 #f9e2af #89b4fa #f5c2e7 #94e2d5 #a6adc8' },
+    'Tokyo Night': { dark: true, bg: '#1a1b26', chrome: '#16161e', surface: '#292e42', border: '#3b4261', fg: '#c0caf5', muted: '#787c99', accent: '#7aa2f7',
+      ansi: '#15161e #f7768e #9ece6a #e0af68 #7aa2f7 #bb9af7 #7dcfff #a9b1d6 #414868 #f7768e #9ece6a #e0af68 #7aa2f7 #bb9af7 #7dcfff #c0caf5' },
+    'Dracula': { dark: true, bg: '#282a36', chrome: '#21222c', surface: '#343746', border: '#44475a', fg: '#f8f8f2', muted: '#9ea3c0', accent: '#bd93f9',
+      ansi: '#21222c #ff5555 #50fa7b #f1fa8c #bd93f9 #ff79c6 #8be9fd #f8f8f2 #6272a4 #ff6e6e #69ff94 #ffffa5 #d6acff #ff92df #a4ffff #ffffff' },
+    'Rosé Pine': { dark: true, bg: '#191724', chrome: '#1f1d2e', surface: '#26233a', border: '#403d52', fg: '#e0def4', muted: '#908caa', accent: '#ebbcba',
+      ansi: '#26233a #eb6f92 #31748f #f6c177 #9ccfd8 #c4a7e7 #ebbcba #e0def4 #6e6a86 #eb6f92 #31748f #f6c177 #9ccfd8 #c4a7e7 #ebbcba #e0def4' },
+    'Nord': { dark: true, bg: '#2e3440', chrome: '#272c36', surface: '#3b4252', border: '#4c566a', fg: '#d8dee9', muted: '#a0aabb', accent: '#88c0d0',
+      ansi: '#3b4252 #bf616a #a3be8c #ebcb8b #81a1c1 #b48ead #88c0d0 #e5e9f0 #4c566a #bf616a #a3be8c #ebcb8b #81a1c1 #b48ead #8fbcbb #eceff4' },
+    'Gruvbox': { dark: true, bg: '#282828', chrome: '#1d2021', surface: '#3c3836', border: '#504945', fg: '#ebdbb2', muted: '#a89984', accent: '#fabd2f',
+      ansi: '#282828 #cc241d #98971a #d79921 #458588 #b16286 #689d6a #a89984 #928374 #fb4934 #b8bb26 #fabd2f #83a598 #d3869b #8ec07c #ebdbb2' },
+    'One Dark': { dark: true, bg: '#282c34', chrome: '#21252b', surface: '#2c313a', border: '#3e4451', fg: '#abb2bf', muted: '#828997', accent: '#61afef',
+      ansi: '#3f4451 #e06c75 #98c379 #e5c07b #61afef #c678dd #56b6c2 #abb2bf #5c6370 #e06c75 #98c379 #e5c07b #61afef #c678dd #56b6c2 #ffffff' },
+    'Catppuccin Latte': { dark: false, bg: '#eff1f5', chrome: '#e6e9ef', surface: '#ccd0da', border: '#bcc0cc', fg: '#4c4f69', muted: '#6c6f85', accent: '#8839ef',
+      ansi: '#5c5f77 #d20f39 #40a02b #df8e1d #1e66f5 #ea76cb #179299 #acb0be #6c6f85 #d20f39 #40a02b #df8e1d #1e66f5 #ea76cb #179299 #bcc0cc' }
+  };
+  const ANSI_NAMES = ['black', 'red', 'green', 'yellow', 'blue', 'magenta', 'cyan', 'white',
+    'brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite'];
+
+  const $ = id => document.getElementById(id);
+  const tabsEl = $('tabs'), panesEl = $('panes'), dialog = $('dialog');
   const terms = new Map(); // id -> { term, fit, pane, tab }
   let activeId = null;
+  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs' };
 
   const send = msg => window.HybridWebView.SendRawMessage(JSON.stringify(msg));
+  const saveSettings = () => send({ t: 'settings', ...settings });
+  const icon = name => `<svg class="icon"><use href="#i-${name}"/></svg>`;
+  const closeButton = '<button class="close" title="Close" aria-label="Close">' + icon('x') + '</button>';
+
+  function termTheme(theme) {
+    const colors = { background: theme.bg, foreground: theme.fg, cursor: theme.accent, cursorAccent: theme.bg, selectionBackground: theme.accent + '55' };
+    theme.ansi.split(' ').forEach((color, i) => colors[ANSI_NAMES[i]] = color);
+    return colors;
+  }
+
+  function applyTheme(name) {
+    const theme = THEMES[name] ?? THEMES['Catppuccin Mocha'];
+    const root = document.documentElement.style;
+    for (const key of ['bg', 'chrome', 'surface', 'border', 'fg', 'muted', 'accent'])
+      root.setProperty('--' + key, theme[key]);
+    root.setProperty('--accent-fg', theme.dark ? theme.chrome : '#ffffff');
+    root.colorScheme = theme.dark ? 'dark' : 'light';
+    for (const entry of terms.values()) entry.term.options.theme = termTheme(theme);
+    for (const swatch of $('themes').children) swatch.classList.toggle('selected', swatch.dataset.name === name);
+    // The native title bar follows the theme too.
+    send({ t: 'chrome', bg: theme.chrome, fg: theme.fg, dark: theme.dark });
+  }
 
   function addTerminal(id, title) {
     const pane = document.createElement('div');
     pane.className = 'pane';
-    pane.innerHTML = '<div class="head"><span></span><span class="close">✕</span></div><div class="term"></div>';
-    pane.querySelector('.head span').textContent = title;
+    pane.innerHTML = `<div class="head">${icon('terminal')}<span class="title"></span>${closeButton}</div><div class="term"></div>`;
+    pane.querySelector('.title').textContent = title;
     pane.querySelector('.close').onclick = e => { e.stopPropagation(); closeTerminal(id); };
     pane.addEventListener('mousedown', () => activate(id));
     panesEl.appendChild(pane);
 
     const tab = document.createElement('div');
     tab.className = 'tab';
-    tab.innerHTML = '<span></span><span class="close">✕</span>';
+    tab.innerHTML = `${icon('terminal')}<span></span>${closeButton}`;
     tab.querySelector('span').textContent = title;
     tab.querySelector('.close').onclick = e => { e.stopPropagation(); closeTerminal(id); };
     tab.onclick = () => activate(id);
@@ -60,7 +207,7 @@
       fontFamily: '"CaskaydiaCove NFM", "MesloLGS Nerd Font Mono", "Cascadia Mono", Consolas, monospace',
       fontSize: 14,
       cursorBlink: true,
-      theme: { background: '#1e1e1e' }
+      theme: termTheme(THEMES[settings.theme] ?? THEMES['Catppuccin Mocha'])
     });
     const fit = new FitAddon.FitAddon();
     term.loadAddon(fit);
@@ -74,6 +221,7 @@
     term.onResize(size => send({ t: 'resize', id, cols: size.cols, rows: size.rows }));
     send({ t: 'start', id, cols: term.cols, rows: term.rows });
     fitAll();
+    tab.scrollIntoView();
     term.focus();
   }
 
@@ -106,12 +254,16 @@
       entry.tab.classList.toggle('active', key === id);
     }
     fitAll();
-    requestAnimationFrame(() => terms.get(id)?.term.focus());
+    focusActive();
+  }
+
+  function focusActive() {
+    requestAnimationFrame(() => terms.get(activeId)?.term.focus());
   }
 
   // Grid mode: a near-square grid, with the last pane stretched to fill any gap.
   function arrange() {
-    const grid = document.body.classList.contains('grid');
+    const grid = settings.layout === 'grid';
     const count = grid ? Math.max(terms.size, 1) : 1;
     const cols = Math.ceil(Math.sqrt(count));
     const rows = Math.ceil(count / cols);
@@ -122,6 +274,8 @@
       const last = grid && i === panes.length - 1;
       pane.style.gridColumn = last ? `span ${cols * rows - count + 1}` : '';
     });
+    document.body.classList.toggle('empty', terms.size === 0);
+    $('count').textContent = terms.size === 1 ? '1 terminal' : `${terms.size} terminals`;
   }
 
   function fitAll() {
@@ -132,9 +286,33 @@
   }
 
   function setLayout(mode) {
-    document.body.className = mode;
+    const grid = mode === 'grid';
+    settings.layout = grid ? 'grid' : 'tabs';
+    document.body.classList.toggle('grid', grid);
+    document.body.classList.toggle('tabs', !grid);
+    $('layout').setAttribute('aria-checked', grid);
+    $('layout').dataset.tip = grid ? 'Tiled evenly · click for tabs' : 'Tabs · click to tile evenly';
     arrange();
     fitAll();
+  }
+
+  function init(msg) {
+    settings = { ...settings, ...msg.settings };
+    $('shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
+    $('shell').value = settings.shell;
+    $('program').value = settings.program;
+    $('themes').replaceChildren(...Object.entries(THEMES).map(([name, theme]) => {
+      const swatch = document.createElement('button');
+      swatch.className = 'swatch';
+      swatch.dataset.name = name;
+      swatch.style.cssText = `background:${theme.bg};color:${theme.fg};--accent:${theme.accent}`;
+      const dots = theme.ansi.split(' ').slice(1, 6).map(color => `<b style="background:${color}"></b>`).join('');
+      swatch.innerHTML = `<i>${dots}</i>${name}`;
+      swatch.onclick = () => { settings.theme = name; applyTheme(name); saveSettings(); };
+      return swatch;
+    }));
+    applyTheme(settings.theme);
+    setLayout(settings.layout);
   }
 
   window.addEventListener('HybridWebViewMessageReceived', e => {
@@ -145,9 +323,18 @@
         break;
       case 'new': addTerminal(msg.id, msg.title); break;
       case 'exit': removeTerminal(msg.id); break;
-      case 'layout': setLayout(msg.mode); break;
+      case 'init': init(msg); break;
     }
   });
+
+  $('new').onclick = $('empty-new').onclick = () => send({ t: 'new' });
+  $('layout').onclick = () => { setLayout(settings.layout === 'grid' ? 'tabs' : 'grid'); saveSettings(); focusActive(); };
+  $('settings').onclick = () => dialog.showModal();
+  $('dialog-close').onclick = () => dialog.close();
+  dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
+  dialog.addEventListener('close', focusActive);
+  $('shell').onchange = () => { settings.shell = $('shell').value; saveSettings(); };
+  $('program').oninput = () => { settings.program = $('program').value.trim(); saveSettings(); };
 
   new ResizeObserver(fitAll).observe(panesEl);
   send({ t: 'ready' });
