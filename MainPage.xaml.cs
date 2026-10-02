@@ -18,6 +18,10 @@ public partial class MainPage : ContentPage
 	readonly Dictionary<int, string> _pending = new();
 	readonly Dictionary<int, ConPtySession> _sessions = new();
 	int _nextId = 1;
+	readonly CancellationTokenSource _closing = new();
+	// The last Claude status sent to the web view, so that only changes are sent.
+	string? _status;
+	bool _watching;
 
 	public MainPage()
 	{
@@ -26,6 +30,7 @@ public partial class MainPage : ContentPage
 
 	public void CloseAll()
 	{
+		_closing.Cancel();
 		foreach (var session in _sessions.Values)
 			session.Dispose();
 		_sessions.Clear();
@@ -49,6 +54,40 @@ public partial class MainPage : ContentPage
 			},
 		};
 		Web.SendRawMessage(init.ToJsonString());
+	}
+
+	// Reads the Claude sessions off the UI thread every few seconds for the status panel.
+	void WatchClaude()
+	{
+		if (_status is not null)
+			Web.SendRawMessage(_status); // the page was reloaded: give it what we have
+		if (_watching)
+			return;
+		_watching = true;
+		var stop = _closing.Token;
+		Task.Run(async () =>
+		{
+			var claude = new ClaudeStatus();
+			while (!stop.IsCancellationRequested)
+			{
+				var status = claude.Snapshot();
+				Dispatcher.Dispatch(() =>
+				{
+					if (status == _status || stop.IsCancellationRequested)
+						return;
+					_status = status;
+					Web.SendRawMessage(status);
+				});
+				try
+				{
+					await Task.Delay(TimeSpan.FromSeconds(3), stop);
+				}
+				catch (OperationCanceledException)
+				{
+					break;
+				}
+			}
+		});
 	}
 
 	// The web view sizes the terminal first, then asks us to start the shell at that size.
@@ -91,6 +130,7 @@ public partial class MainPage : ContentPage
 			case "ready":
 				SendInit();
 				NewTerminal();
+				WatchClaude();
 				break;
 			case "new":
 				NewTerminal();
