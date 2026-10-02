@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -16,7 +17,8 @@ public partial class MainPage : ContentPage
 	readonly List<Shell> _shells = FindShells();
 	// Terminals announced to the web view but not yet started: id -> command line.
 	readonly Dictionary<int, string> _pending = new();
-	readonly Dictionary<int, ConPtySession> _sessions = new();
+	// Concurrent: the Claude status reader looks up the shells from its own thread.
+	readonly ConcurrentDictionary<int, ConPtySession> _sessions = new();
 	int _nextId = 1;
 	readonly CancellationTokenSource _closing = new();
 	// The last Claude status sent to the web view, so that only changes are sent.
@@ -70,7 +72,7 @@ public partial class MainPage : ContentPage
 			var claude = new ClaudeStatus();
 			while (!stop.IsCancellationRequested)
 			{
-				var status = claude.Snapshot();
+				var status = claude.Snapshot(_sessions.ToDictionary(shell => shell.Value.ProcessId, shell => shell.Key));
 				Dispatcher.Dispatch(() =>
 				{
 					if (status == _status || stop.IsCancellationRequested)
@@ -155,7 +157,7 @@ public partial class MainPage : ContentPage
 				break;
 			case "close":
 				_pending.Remove(Number("id"));
-				if (_sessions.Remove(Number("id"), out var closed))
+				if (_sessions.TryRemove(Number("id"), out var closed))
 					closed.Dispose();
 				break;
 		}
@@ -210,7 +212,7 @@ public partial class MainPage : ContentPage
 		session.Output += data => Dispatcher.DispatchAsync(() => SendOutput(id, data)).Wait();
 		session.Exited += () => Dispatcher.Dispatch(() =>
 		{
-			if (_sessions.Remove(id, out var ended))
+			if (_sessions.TryRemove(id, out var ended))
 				ended.Dispose();
 			Web.SendRawMessage($"{{\"t\":\"exit\",\"id\":{id}}}");
 		});

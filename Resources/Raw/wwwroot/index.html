@@ -93,6 +93,7 @@
   .c-section .icon, .card .icon { width: 12px; height: 12px; }
 
   .card { flex: none; border: 1px solid var(--border); border-radius: 9px; background: color-mix(in srgb, var(--surface) 30%, var(--bg)); }
+  .card-meta .here { color: var(--accent); }
   .card.open { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
   .card-top { padding: 9px 10px; cursor: pointer; user-select: none; }
   .card-line { display: flex; align-items: center; gap: 8px; }
@@ -409,6 +410,9 @@
   function sessionCard(s) {
     const open = s.key === openSession;
     const meta = [];
+    // A session running in one of this window's terminals names it: a click jumps there.
+    const here = terms.get(s.terminal);
+    if (here) meta.push(`<span class="here" title="Click to jump to this terminal">${icon('terminal')}${esc(here.tab.querySelector('span').textContent)}</span>`);
     if (s.repo) meta.push(icon('branch') + esc(s.repo) + (s.branch ? ' · ' + esc(s.branch) : ''));
     if (s.model) meta.push(esc(s.model.replace(/^claude-/, '')));
     if (s.tokens) meta.push(tokens(s.tokens) + ' tokens');
@@ -481,6 +485,12 @@
     if (!top) return;
     openSession = openSession === top.dataset.key ? null : top.dataset.key;
     renderClaude();
+    const terminal = claude.sessions.find(s => s.key === top.dataset.key)?.terminal;
+    if (terms.has(terminal)) {
+      activate(terminal);
+      terms.get(terminal).tab.scrollIntoView();
+      focusActive();
+    }
   };
   setInterval(renderClaude, 15000); // keeps the "ago" times moving while nothing changes
 

@@ -10,6 +10,9 @@ public sealed class ConPtySession : IDisposable
 {
 	readonly IntPtr _pty;
 	readonly IntPtr _process;
+
+	/// <summary>Process id of the shell.</summary>
+	public int ProcessId { get; private set; }
 	readonly FileStream _input;
 	readonly FileStream _output;
 	int _disposed;
@@ -120,6 +123,7 @@ public sealed class ConPtySession : IDisposable
 					throw new Win32Exception();
 
 				CloseHandle(info.hThread);
+				ProcessId = info.dwProcessId;
 				return info.hProcess;
 			}
 			finally

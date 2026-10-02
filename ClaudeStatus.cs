@@ -1,6 +1,7 @@
 using System.ComponentModel;
 using System.Diagnostics;
 using System.Globalization;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -49,16 +50,21 @@ public sealed partial class ClaudeStatus
 	}
 
 	/// <summary>Everything the status panel shows, as the JSON message sent to the web view.</summary>
-	public string Snapshot()
+	/// <param name="shells">Process id of each terminal's shell in this window -> the terminal's id.</param>
+	public string Snapshot(IReadOnlyDictionary<int, int> shells)
 	{
 		var now = DateTime.UtcNow;
 		var sessions = new List<Session>();
+		var parents = shells.Count > 0 ? ParentPids() : [];
 		foreach (var file in RegistryFiles())
 		{
 			try
 			{
 				if (ReadSession(file, now) is { } session)
+				{
+					session.Terminal = TerminalOf(session.Pid, shells, parents);
 					sessions.Add(session);
+				}
 			}
 			catch (Exception)
 			{
@@ -93,6 +99,7 @@ public sealed partial class ClaudeStatus
 	sealed class Session
 	{
 		public int Pid;
+		public int? Terminal;
 		public string? Id, Name, Title, Cwd, Model, WaitingFor, Version, Kind;
 		public string Status = "unknown";
 		public long? Started, Last;
@@ -106,6 +113,7 @@ public sealed partial class ClaudeStatus
 		{
 			["key"] = Pid.ToString(CultureInfo.InvariantCulture),
 			["pid"] = Pid,
+			["terminal"] = Terminal,
 			["id"] = Id,
 			["title"] = Title ?? Name,
 			["cwd"] = Cwd,
@@ -223,6 +231,90 @@ public sealed partial class ClaudeStatus
 			return false; // no such process, or it ended while we looked
 		}
 	}
+
+	// The terminal of this window a session runs in: the one whose shell is an ancestor of
+	// the session's process. Null for a session started anywhere else.
+	static int? TerminalOf(int pid, IReadOnlyDictionary<int, int> shells, Dictionary<int, int> parents)
+	{
+		var started = StartTime(pid);
+		for (int depth = 0; depth < 32 && started is not null; depth++)
+		{
+			if (!parents.TryGetValue(pid, out int parent) || parent == pid)
+				return null;
+			// A parent that started after its child is another process that was given the PID later.
+			var parentStarted = StartTime(parent);
+			if (parentStarted is null || parentStarted > started)
+				return null;
+			if (shells.TryGetValue(parent, out int terminal))
+				return terminal;
+			(pid, started) = (parent, parentStarted);
+		}
+		return null;
+	}
+
+	static DateTime? StartTime(int pid)
+	{
+		try
+		{
+			using var process = Process.GetProcessById(pid);
+			return process.StartTime;
+		}
+		catch (Exception e) when (e is ArgumentException or InvalidOperationException or Win32Exception)
+		{
+			return null;
+		}
+	}
+
+	/// <summary>Every process id on the machine -> its parent's.</summary>
+	static Dictionary<int, int> ParentPids()
+	{
+		var parents = new Dictionary<int, int>();
+		var snapshot = CreateToolhelp32Snapshot(TH32CS_SNAPPROCESS, 0);
+		if (snapshot == INVALID_HANDLE_VALUE)
+			return parents;
+		try
+		{
+			var entry = new PROCESSENTRY32W { dwSize = (uint)Marshal.SizeOf<PROCESSENTRY32W>() };
+			for (bool more = Process32FirstW(snapshot, ref entry); more; more = Process32NextW(snapshot, ref entry))
+				parents[(int)entry.th32ProcessID] = (int)entry.th32ParentProcessID;
+		}
+		finally
+		{
+			CloseHandle(snapshot);
+		}
+		return parents;
+	}
+
+	const uint TH32CS_SNAPPROCESS = 0x00000002;
+	static readonly IntPtr INVALID_HANDLE_VALUE = new(-1);
+
+	[StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+	struct PROCESSENTRY32W
+	{
+		public uint dwSize;
+		public uint cntUsage;
+		public uint th32ProcessID;
+		public UIntPtr th32DefaultHeapID;
+		public uint th32ModuleID;
+		public uint cntThreads;
+		public uint th32ParentProcessID;
+		public int pcPriClassBase;
+		public uint dwFlags;
+		[MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
+		public string szExeFile;
+	}
+
+	[DllImport("kernel32.dll", SetLastError = true)]
+	static extern IntPtr CreateToolhelp32Snapshot(uint dwFlags, uint th32ProcessID);
+
+	[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+	static extern bool Process32FirstW(IntPtr hSnapshot, ref PROCESSENTRY32W lppe);
+
+	[DllImport("kernel32.dll", CharSet = CharSet.Unicode)]
+	static extern bool Process32NextW(IntPtr hSnapshot, ref PROCESSENTRY32W lppe);
+
+	[DllImport("kernel32.dll")]
+	static extern bool CloseHandle(IntPtr hObject);
 
 	static string DeriveStatus(string? rawStatus, Transcript? state, DateTime? modified, DateTime now)
 	{
