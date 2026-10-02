@@ -20,6 +20,8 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
 - **Claude panel:** every Claude Code session running on the machine, with its status
   (running, waiting, idle), model, token count, sub-agent tree and recent activity.
   Clicking a session that runs in one of this window's terminals jumps to that terminal.
+  At the top it shows the plan's usage: how much of the 5-hour and 7-day windows is used
+  and when each resets.
 - **Git panel:** for each repository that has a Claude session: its remotes, and for
   every worktree the branch, distance from its upstream, changed files and last commit.
 
@@ -33,7 +35,7 @@ Requirements:
 - Optional: [Claude Code](https://claude.com/claude-code) for the Claude panel, and
   `git` on the path for the Git panel.
 
-Download `TermHost-1.0.0-x64.msi` from the
+Download the `.msi` file from the
 [latest release](https://github.com/mintoantony/TermHost/releases/latest) and run it.
 You can also build the installer yourself: see [Build the installer](#build-the-installer).
 
@@ -75,6 +77,11 @@ closes the other.
 - The Claude panel lists sessions that Claude Code has registered under `~/.claude`.
   A session that has just started appears after a few seconds; one that has ended is
   no longer shown.
+- The usage figures are read from the file that the
+  [ClaudeCodeStatusLine](https://github.com/daniel3303/ClaudeCodeStatusLine) status line
+  saves (`%TEMP%\claude\statusline-usage-cache.json`). Without that status line the panel
+  says the limits are not available. The figures are as fresh as the last time a Claude
+  session drew its status line.
 - The Git panel only lists repositories that have a Claude session running in them.
 - With WSL, the startup program is run through `bash`.
 - The layout of Claude Code's files is not documented and may change between versions.
@@ -91,8 +98,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1                  # artifacts\TermHost-1.0.0-x64.msi
-    pwsh installer\build.ps1 -Version 1.1.0   # another version
+    pwsh installer\build.ps1 -Version 1.1.0   # artifacts\TermHost-1.1.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.

@@ -82,6 +82,7 @@ public sealed partial class ClaudeStatus
 		{
 			["t"] = "status",
 			["sessions"] = new JsonArray(sessions.Select(s => (JsonNode)s.ToJson()).ToArray()),
+			["usage"] = UsageJson(),
 			// Asking git about every worktree is the slow part: only while the Git panel is open.
 			["git"] = withGit ? GitJson(sessions) : null,
 		}.ToJsonString();
@@ -950,6 +951,56 @@ public sealed partial class ClaudeStatus
 		{
 			return null; // git missing, or it ended oddly
 		}
+	}
+
+	// ---- Usage limits: the 5-hour and 7-day windows of the Claude plan ----
+	//
+	// Claude Code gives these figures only to its status line. The ClaudeCodeStatusLine
+	// script (github.com/daniel3303/ClaudeCodeStatusLine) saves what it is given to a small
+	// file, and that file is what is read here: no credentials, no network.
+
+	static readonly (string Key, string Label)[] UsageWindows =
+		[("five_hour", "5-hour"), ("seven_day", "7-day"), ("seven_day_opus", "7-day Opus"), ("seven_day_sonnet", "7-day Sonnet")];
+
+	static readonly string UsageFile = Path.Combine(Path.GetTempPath(), "claude", "statusline-usage-cache.json");
+
+	sealed record UsageWindow(string Label, double Percent, long? Resets);
+
+	// The last good reading: the file is emptied for a moment each time it is rewritten.
+	(long At, List<UsageWindow> Windows, double? Extra)? _usage;
+
+	JsonObject? UsageJson()
+	{
+		try
+		{
+			var info = new FileInfo(UsageFile);
+			if (info.Exists && info.Length > 0)
+			{
+				using var doc = JsonDocument.Parse(File.ReadAllBytes(UsageFile));
+				var windows = new List<UsageWindow>();
+				foreach (var (key, label) in UsageWindows)
+					if (Element(doc.RootElement, key, JsonValueKind.Object) is { } window
+						&& Element(window, "utilization", JsonValueKind.Number) is { } used && used.TryGetDouble(out double percent))
+						windows.Add(new UsageWindow(label, percent, ParseTime(Text(window, "resets_at"))));
+				double? extra = Element(doc.RootElement, "extra_usage", JsonValueKind.Object) is { } paid && IsTrue(paid, "is_enabled")
+					&& Element(paid, "utilization", JsonValueKind.Number) is { } spent && spent.TryGetDouble(out double spentPercent) ? spentPercent : null;
+				if (windows.Count > 0)
+					_usage = (new DateTimeOffset(info.LastWriteTimeUtc).ToUnixTimeMilliseconds(), windows, extra);
+			}
+		}
+		catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+		{
+			// Caught half-written: keep the last good reading.
+		}
+		if (_usage is not { } usage)
+			return null;
+		return new JsonObject
+		{
+			["at"] = usage.At,
+			["windows"] = new JsonArray(usage.Windows.Select(window =>
+				(JsonNode)new JsonObject { ["label"] = window.Label, ["percent"] = window.Percent, ["resets"] = window.Resets }).ToArray()),
+			["extra"] = usage.Extra,
+		};
 	}
 
 	// ---- Reading untrusted JSON: a wrong shape is "not there", never an error ----

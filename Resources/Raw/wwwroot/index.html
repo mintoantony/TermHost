@@ -86,6 +86,15 @@
   .c-head > .icon { color: var(--accent); }
   .c-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
   .c-head span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
+  #claude-usage { flex: none; display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 2px 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); font-size: 12px; }
+  #claude-usage:empty { display: none; }
+  #claude-usage b { font-weight: 600; }
+  #claude-usage .pct { font: 12px "Cascadia Mono", Consolas, monospace; color: var(--c); }
+  #claude-usage .note { grid-column: 1 / -1; margin-bottom: 6px; font-size: 11px; color: var(--muted); }
+  #claude-usage .note:last-child { margin-bottom: 0; }
+  .meter { height: 6px; overflow: hidden; border-radius: 3px; background: var(--surface); }
+  .meter i { display: block; height: 100%; border-radius: 3px; background: var(--c); }
+  .low { --c: var(--green); } .mid { --c: var(--yellow); } .high { --c: var(--red); }
   .panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
   .panel-body, .list { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
   .c-empty { margin: auto; padding: 0 24px; text-align: center; color: var(--muted); }
@@ -190,6 +199,7 @@
       <span id="claude-summary"></span>
       <button id="claude-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
+    <div id="claude-usage"></div>
     <div id="claude-body" class="panel-body"></div>
   </aside>
   <aside id="git-panel" class="panel">
@@ -472,6 +482,40 @@
     }
   }
 
+  // "17:30" today, "Tue 06:00" on another day.
+  function when(ms) {
+    const date = new Date(ms);
+    const time = date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false });
+    return date.toDateString() === new Date().toDateString() ? time : date.toLocaleDateString([], { weekday: 'short' }) + ' ' + time;
+  }
+
+  // "12m", "2h 5m", "3d 12h"
+  function countdown(ms) {
+    const minutes = Math.max(0, Math.round((ms - Date.now()) / 60000));
+    const d = Math.floor(minutes / 1440), h = Math.floor(minutes % 1440 / 60), m = minutes % 60;
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : `${m}m`;
+  }
+
+  // The plan's usage windows, above the sessions: how much is used and when each resets.
+  function usageRows(sessions) {
+    const usage = claude?.usage;
+    const total = sessions.reduce((sum, s) => sum + s.tokens, 0);
+    const live = sessions.length ? `${plural(sessions.length, 'live session')} · ${tokens(total)} tokens` : '';
+    if (!usage)
+      return claude ? `<div class="note">Usage limits are not available: they come from the Claude Code status line's cache.</div>${live && `<div class="note">${live}</div>`}` : '';
+    const rows = usage.windows.map(w => {
+      // Past its reset time, the saved figure belongs to the window before.
+      const over = w.resets && w.resets <= Date.now();
+      const percent = over ? 0 : Math.min(100, Math.round(w.percent));
+      const level = percent >= 80 ? 'high' : percent >= 50 ? 'mid' : 'low';
+      const note = !w.resets ? '' : over ? `reset at ${when(w.resets)} · no reading since` : `resets ${when(w.resets)} · in ${countdown(w.resets)}`;
+      return `<b>${esc(w.label)}</b><div class="meter ${level}"><i style="width:${percent}%"></i></div><span class="pct ${level}">${over ? '–' : percent + '%'}</span>
+        <div class="note">${note}</div>`;
+    }).join('');
+    const extra = usage.extra == null ? '' : `<b>Extra usage</b><div class="meter mid"><i style="width:${Math.min(100, Math.round(usage.extra))}%"></i></div><span class="pct mid">${Math.round(usage.extra)}%</span><div class="note"></div>`;
+    return rows + extra + `<div class="note">${live && live + ' · '}read ${ago(usage.at)}</div>`;
+  }
+
   function renderClaude() {
     const sessions = claude?.sessions ?? [];
     const count = status => sessions.filter(s => s.status === status).length;
@@ -482,6 +526,7 @@
     if (panel !== 'claude') return;
 
     $('claude-summary').textContent = summary;
+    $('claude-usage').innerHTML = usageRows(sessions);
     const body = $('claude-body');
     if (!claude) { body.innerHTML = '<div class="c-empty">Reading Claude sessions…</div>'; return; }
     if (openSession === undefined) openSession = sessions[0]?.key;
