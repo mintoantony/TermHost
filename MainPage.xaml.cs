@@ -10,6 +10,9 @@ public partial class MainPage : ContentPage
 
 	record Shell(string Name, string Command, ShellKind Kind);
 
+	// Runs in every new terminal until changed in settings.
+	const string DefaultProgram = "claude";
+
 	readonly List<Shell> _shells = FindShells();
 	// Terminals announced to the web view but not yet started: id -> command line.
 	readonly Dictionary<int, string> _pending = new();
@@ -40,7 +43,7 @@ public partial class MainPage : ContentPage
 			["settings"] = new JsonObject
 			{
 				["shell"] = DefaultShell.Name,
-				["program"] = Preferences.Default.Get("program", ""),
+				["program"] = Preferences.Default.Get("program", DefaultProgram),
 				["theme"] = Preferences.Default.Get("theme", "Catppuccin Mocha"),
 				["layout"] = Preferences.Default.Get("layout", "tabs"),
 			},
@@ -52,7 +55,7 @@ public partial class MainPage : ContentPage
 	void NewTerminal()
 	{
 		var shell = DefaultShell;
-		var program = Preferences.Default.Get("program", "").Trim();
+		var program = Preferences.Default.Get("program", DefaultProgram).Trim();
 		int id = _nextId++;
 		_pending[id] = CommandLine(shell, program);
 		var name = program.Length == 0 ? shell.Name : program.Length > 24 ? program[..24] + "…" : program;
