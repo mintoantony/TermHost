@@ -16,6 +16,10 @@ public partial class App : MauiWinUIApplication
 	/// </summary>
 	public App()
 	{
+		// WebView2 keeps its data beside the executable by default, which an installed
+		// copy may not be allowed to write to: keep it with the user's other app data.
+		Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER",
+			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermHost", "WebView2"));
 		this.InitializeComponent();
 	}
 

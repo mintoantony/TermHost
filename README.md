@@ -1,0 +1,110 @@
+# TermHost
+
+A Windows terminal host for working with several shells at once, with built-in panels
+for the Claude Code sessions and git repositories on the machine.
+
+It is a .NET MAUI app. Each terminal is a real shell attached through the Windows
+pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
+
+## Features
+
+- **Any number of terminals** in one window, shown as **tabs** or **tiled evenly** in a
+  grid. One toggle switches between the two.
+- **Shells:** PowerShell 7, Windows PowerShell, Command Prompt and WSL (the ones found
+  on the machine).
+- **Startup program:** a command that runs in every new terminal, such as `claude`,
+  `copilot` or a script. The shell stays open when the program ends.
+- **Themes:** Catppuccin Mocha, Tokyo Night, Dracula, Rosé Pine, Nord, Gruvbox, One Dark
+  and Catppuccin Latte (light). A theme recolours the terminals, the toolbar, the panels
+  and the window title bar.
+- **Claude panel:** every Claude Code session running on the machine, with its status
+  (running, waiting, idle), model, token count, sub-agent tree and recent activity.
+  Clicking a session that runs in one of this window's terminals jumps to that terminal.
+- **Git panel:** for each repository that has a Claude session: its remotes, and for
+  every worktree the branch, distance from its upstream, changed files and last commit.
+
+## Install
+
+Requirements:
+
+- Windows 10 version 1809 or later, or Windows 11, 64-bit.
+- The WebView2 runtime. Windows 11 includes it; for Windows 10 see
+  <https://developer.microsoft.com/microsoft-edge/webview2/>.
+- Optional: [Claude Code](https://claude.com/claude-code) for the Claude panel, and
+  `git` on the path for the Git panel.
+
+Build the installer (see [Build the installer](#build-the-installer)), then run
+`artifacts\TermHost-1.0.0-x64.msi`.
+
+- It installs for the current user, into `%LOCALAPPDATA%\Programs\TermHost`, and adds a
+  Start menu shortcut. No administrator rights are needed.
+- .NET and the Windows App SDK are included, so nothing else has to be installed.
+- The installer is not signed, so Windows may show a SmartScreen warning.
+- To remove it, use **Settings > Apps > Installed apps**. Your settings are kept.
+
+## Use
+
+The toolbar is at the top right. Hover over an icon for its name.
+
+| Icon | What it does |
+|---|---|
+| Plus | Opens a new terminal: the default terminal, running the startup program. |
+| Tabs / grid switch | Switches between tabs and an even grid of all terminals. |
+| Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
+| Branch | Opens the Git panel. |
+| Gear | Opens the settings. |
+
+**Settings** hold the default terminal, the startup program and the theme. They apply
+at once and are remembered. Leave the startup program empty for a plain shell. A fresh
+install starts with `claude` as the startup program.
+
+**Claude panel:** click a session to expand it. A session that runs in one of this
+window's terminals shows that terminal's name; clicking it also switches to the
+terminal.
+
+**Git panel:** click a worktree to see its path, upstream, last commit and changed
+files. Click a remote to open its web page. Counts on a worktree row: `+` staged,
+`~` modified, `?` untracked, `!` in conflict, `↑` ahead of and `↓` behind the upstream.
+
+The Claude and Git panels share one place at the right of the window, so opening one
+closes the other.
+
+## Limits
+
+- The Claude panel lists sessions that Claude Code has registered under `~/.claude`.
+  A session that has just started appears after a few seconds; one that has ended is
+  no longer shown.
+- The Git panel only lists repositories that have a Claude session running in them.
+- With WSL, the startup program is run through `bash`.
+- The layout of Claude Code's files is not documented and may change between versions.
+
+## Build from source
+
+Requirements: the .NET 10 SDK with the MAUI Windows workload.
+
+    dotnet workload install maui-windows
+    dotnet run --project TermHost.csproj
+
+### Build the installer
+
+Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
+
+    dotnet tool install --global wix
+    pwsh installer\build.ps1                  # artifacts\TermHost-1.0.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.1.0   # another version
+
+The script publishes a self-contained build to `artifacts\publish` and wraps it in an
+MSI. A newer version replaces an installed older one.
+
+## How it is put together
+
+| File | Role |
+|---|---|
+| `ConPtySession.cs` | One shell process attached to a pseudo console. |
+| `MainPage.xaml.cs` | Starts terminals, keeps the settings and passes messages between the shells and the web view. |
+| `Resources/Raw/wwwroot/index.html` | The whole user interface: toolbar, tabs, tiles, panels, settings and themes. |
+| `ClaudeStatus.cs` | Reads the Claude Code sessions, their sub-agents and activity. Ported from the Claude Mission Control dashboard. |
+| `GitDetails.cs` | Reads remotes, worktrees and status with `git`. |
+| `installer/` | The WiX source and the script that builds the MSI. |
+
+xterm.js and its fit add-on are included under `Resources/Raw/wwwroot` (MIT licence).

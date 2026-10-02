@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- Built by build.ps1, which passes PublishDir (the published app) and Version. -->
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs">
+  <!-- Per user: installs under %LOCALAPPDATA%\Programs and needs no administrator rights. -->
+  <Package Name="TermHost" Manufacturer="Minto Antony" Version="$(Version)" Scope="perUser"
+           UpgradeCode="6f0b6c3e-6a4b-4f6e-9d0a-3b1d7c2e5a41">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of TermHost is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <!-- The icon shown in "Installed apps" and on the shortcut. -->
+    <Icon Id="TermHost.exe" SourceFile="$(PublishDir)\TermHost.exe" />
+    <Property Id="ARPPRODUCTICON" Value="TermHost.exe" />
+    <Property Id="ARPURLINFOABOUT" Value="https://github.com/mintoantony/TermHost" />
+
+    <StandardDirectory Id="LocalAppDataFolder">
+      <Directory Id="ProgramsFolder" Name="Programs">
+        <Directory Id="INSTALLFOLDER" Name="TermHost" />
+      </Directory>
+    </StandardDirectory>
+
+    <Feature Id="Main" Title="TermHost">
+      <Files Directory="INSTALLFOLDER" Include="$(PublishDir)\**" />
+      <Component Id="StartMenuShortcut" Directory="ProgramMenuFolder">
+        <Shortcut Id="StartMenu" Name="TermHost" Description="Terminals in tabs or tiles, with Claude and Git status"
+                  Target="[INSTALLFOLDER]TermHost.exe" WorkingDirectory="INSTALLFOLDER" Icon="TermHost.exe" />
+        <RegistryValue Root="HKCU" Key="Software\TermHost" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </Feature>
+  </Package>
+</Wix>
