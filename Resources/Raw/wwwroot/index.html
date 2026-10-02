@@ -1,0 +1,156 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<link rel="stylesheet" href="xterm.css">
+<style>
+  html, body { height: 100%; margin: 0; overflow: hidden; background: #1e1e1e; color: #ccc; font: 13px "Segoe UI", sans-serif; }
+  body { display: flex; flex-direction: column; }
+
+  #tabs { display: flex; flex: none; overflow-x: auto; background: #2d2d2d; }
+  body.grid #tabs { display: none; }
+  .tab { padding: 6px 10px; cursor: pointer; white-space: nowrap; user-select: none; border-right: 1px solid #1e1e1e; }
+  .tab.active { background: #1e1e1e; color: #fff; }
+  .close { margin-left: 8px; opacity: .6; cursor: pointer; }
+  .close:hover { opacity: 1; }
+
+  #panes { flex: 1; min-height: 0; display: grid; gap: 2px; background: #444; }
+  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; background: #1e1e1e; }
+  body.tabs .pane:not(.active) { display: none; }
+  .head { display: none; flex: none; justify-content: space-between; padding: 2px 8px; background: #2d2d2d; user-select: none; }
+  body.grid .head { display: flex; }
+  body.grid .pane.active .head { background: #0e639c; color: #fff; }
+  .term { flex: 1; min-height: 0; padding: 4px; overflow: hidden; }
+</style>
+</head>
+<body class="tabs">
+<div id="tabs"></div>
+<div id="panes"></div>
+
+<script src="_framework/hybridwebview.js"></script>
+<script src="xterm.js"></script>
+<script src="addon-fit.js"></script>
+<script>
+  const tabsEl = document.getElementById('tabs');
+  const panesEl = document.getElementById('panes');
+  const terms = new Map(); // id -> { term, fit, pane, tab }
+  let activeId = null;
+
+  const send = msg => window.HybridWebView.SendRawMessage(JSON.stringify(msg));
+
+  function addTerminal(id, title) {
+    const pane = document.createElement('div');
+    pane.className = 'pane';
+    pane.innerHTML = '<div class="head"><span></span><span class="close">✕</span></div><div class="term"></div>';
+    pane.querySelector('.head span').textContent = title;
+    pane.querySelector('.close').onclick = e => { e.stopPropagation(); closeTerminal(id); };
+    pane.addEventListener('mousedown', () => activate(id));
+    panesEl.appendChild(pane);
+
+    const tab = document.createElement('div');
+    tab.className = 'tab';
+    tab.innerHTML = '<span></span><span class="close">✕</span>';
+    tab.querySelector('span').textContent = title;
+    tab.querySelector('.close').onclick = e => { e.stopPropagation(); closeTerminal(id); };
+    tab.onclick = () => activate(id);
+    tabsEl.appendChild(tab);
+
+    const term = new Terminal({
+      // Nerd Fonts first so prompt themes (oh-my-posh etc.) get their glyphs when one is installed.
+      fontFamily: '"CaskaydiaCove NFM", "MesloLGS Nerd Font Mono", "Cascadia Mono", Consolas, monospace',
+      fontSize: 14,
+      cursorBlink: true,
+      theme: { background: '#1e1e1e' }
+    });
+    const fit = new FitAddon.FitAddon();
+    term.loadAddon(fit);
+    terms.set(id, { term, fit, pane, tab });
+
+    activate(id);
+    arrange();
+    term.open(pane.querySelector('.term'));
+    fit.fit();
+    term.onData(d => send({ t: 'in', id, d }));
+    term.onResize(size => send({ t: 'resize', id, cols: size.cols, rows: size.rows }));
+    send({ t: 'start', id, cols: term.cols, rows: term.rows });
+    fitAll();
+    term.focus();
+  }
+
+  function closeTerminal(id) {
+    removeTerminal(id);
+    send({ t: 'close', id });
+  }
+
+  function removeTerminal(id) {
+    const entry = terms.get(id);
+    if (!entry) return;
+    entry.term.dispose();
+    entry.pane.remove();
+    entry.tab.remove();
+    terms.delete(id);
+    if (activeId === id) {
+      activeId = null;
+      const last = [...terms.keys()].pop();
+      if (last !== undefined) activate(last);
+    }
+    arrange();
+    fitAll();
+  }
+
+  function activate(id) {
+    if (activeId === id) return;
+    activeId = id;
+    for (const [key, entry] of terms) {
+      entry.pane.classList.toggle('active', key === id);
+      entry.tab.classList.toggle('active', key === id);
+    }
+    fitAll();
+    requestAnimationFrame(() => terms.get(id)?.term.focus());
+  }
+
+  // Grid mode: a near-square grid, with the last pane stretched to fill any gap.
+  function arrange() {
+    const grid = document.body.classList.contains('grid');
+    const count = grid ? Math.max(terms.size, 1) : 1;
+    const cols = Math.ceil(Math.sqrt(count));
+    const rows = Math.ceil(count / cols);
+    panesEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
+    panesEl.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
+    const panes = [...terms.values()].map(entry => entry.pane);
+    panes.forEach((pane, i) => {
+      const last = grid && i === panes.length - 1;
+      pane.style.gridColumn = last ? `span ${cols * rows - count + 1}` : '';
+    });
+  }
+
+  function fitAll() {
+    requestAnimationFrame(() => {
+      for (const entry of terms.values())
+        if (entry.pane.offsetParent !== null) entry.fit.fit();
+    });
+  }
+
+  function setLayout(mode) {
+    document.body.className = mode;
+    arrange();
+    fitAll();
+  }
+
+  window.addEventListener('HybridWebViewMessageReceived', e => {
+    const msg = JSON.parse(e.detail.message);
+    switch (msg.t) {
+      case 'out':
+        terms.get(msg.id)?.term.write(Uint8Array.from(atob(msg.d), c => c.charCodeAt(0)));
+        break;
+      case 'new': addTerminal(msg.id, msg.title); break;
+      case 'exit': removeTerminal(msg.id); break;
+      case 'layout': setLayout(msg.mode); break;
+    }
+  });
+
+  new ResizeObserver(fitAll).observe(panesEl);
+  send({ t: 'ready' });
+</script>
+</body>
+</html>
