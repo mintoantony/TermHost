@@ -11,7 +11,7 @@ namespace TermHost;
 
 /// <summary>
 /// Reports the Claude Code sessions running on this machine: their status, sub-agents,
-/// recent activity and git worktrees. It reads Claude Code's own files under ~/.claude,
+/// recent activity and repositories. It reads Claude Code's own files under ~/.claude,
 /// whose layout is undocumented. Ported from the Claude Mission Control dashboard.
 /// Use from one thread only: the caches are not locked.
 /// </summary>
@@ -38,7 +38,7 @@ public sealed partial class ClaudeStatus
 	readonly Dictionary<string, (long Size, DateTime Modified, List<Event> Events)> _activity = new();
 	readonly Dictionary<string, (DateTime Modified, AgentMeta Meta)> _metas = new();
 	readonly Dictionary<string, (DateTime Expires, GitInfo? Info)> _git = new(StringComparer.OrdinalIgnoreCase);
-	readonly Dictionary<string, (DateTime Expires, List<Worktree> Trees)> _worktrees = new(StringComparer.OrdinalIgnoreCase);
+	readonly GitDetails _details = new();
 
 	public ClaudeStatus()
 	{
@@ -51,7 +51,8 @@ public sealed partial class ClaudeStatus
 
 	/// <summary>Everything the status panel shows, as the JSON message sent to the web view.</summary>
 	/// <param name="shells">Process id of each terminal's shell in this window -> the terminal's id.</param>
-	public string Snapshot(IReadOnlyDictionary<int, int> shells)
+	/// <param name="withGit">Also report the repositories of the sessions, for the Git panel.</param>
+	public string Snapshot(IReadOnlyDictionary<int, int> shells, bool withGit)
 	{
 		var now = DateTime.UtcNow;
 		var sessions = new List<Session>();
@@ -81,7 +82,8 @@ public sealed partial class ClaudeStatus
 		{
 			["t"] = "status",
 			["sessions"] = new JsonArray(sessions.Select(s => (JsonNode)s.ToJson()).ToArray()),
-			["worktrees"] = WorktreesJson(sessions),
+			// Asking git about every worktree is the slow part: only while the Git panel is open.
+			["git"] = withGit ? GitJson(sessions) : null,
 		}.ToJsonString();
 	}
 
@@ -873,11 +875,9 @@ public sealed partial class ClaudeStatus
 		return text.StartsWith('<') || text.StartsWith("[Request interrupted", StringComparison.Ordinal) ? null : text;
 	}
 
-	// ---- Git: repository, branch and worktrees of each session's directory ----
+	// ---- Git: repository and branch of each session's directory ----
 
 	sealed record GitInfo(string RepoName, string? Branch, string? RepoRoot, string? Top, bool Linked);
-
-	sealed record Worktree(string Path, string? Branch);
 
 	GitInfo DetectGit(string cwd, string? transcriptBranch, DateTime now)
 	{
@@ -908,60 +908,17 @@ public sealed partial class ClaudeStatus
 			!string.Equals(gitDir, commonDir, StringComparison.OrdinalIgnoreCase));
 	}
 
-	JsonArray WorktreesJson(List<Session> sessions)
+	// The repositories that hold a session, each with its remotes and worktrees.
+	JsonArray GitJson(List<Session> sessions)
 	{
-		var now = DateTime.UtcNow;
 		var repos = new JsonArray();
 		foreach (var repo in sessions.Where(s => s.Git?.RepoRoot is not null).GroupBy(s => s.Git!.RepoRoot!, StringComparer.OrdinalIgnoreCase).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
-		{
-			if (!_worktrees.TryGetValue(repo.Key, out var entry) || now >= entry.Expires)
-			{
-				entry = (now + GitCacheTime, ListWorktrees(repo.Key));
-				_worktrees[repo.Key] = entry;
-			}
-			var trees = new JsonArray();
-			foreach (var tree in entry.Trees)
-				trees.Add(new JsonObject
-				{
-					["path"] = tree.Path,
-					["branch"] = tree.Branch,
-					["main"] = string.Equals(tree.Path, repo.Key, StringComparison.OrdinalIgnoreCase),
-					["sessions"] = new JsonArray(repo.Where(s => string.Equals(s.Git!.Top, tree.Path, StringComparison.OrdinalIgnoreCase))
-						.Select(s => (JsonNode)s.Pid.ToString(CultureInfo.InvariantCulture)).ToArray()),
-				});
-			repos.Add(new JsonObject { ["repo"] = repo.First().Git!.RepoName, ["root"] = repo.Key, ["trees"] = trees });
-		}
+			repos.Add(_details.Read(repo.Key, repo.First().Git!.RepoName,
+				repo.Select(s => (s.Git!.Top, s.Pid.ToString(CultureInfo.InvariantCulture))).ToList()));
 		return repos;
 	}
 
-	static List<Worktree> ListWorktrees(string root)
-	{
-		var trees = new List<Worktree>();
-		string? path = null, branch = null;
-		void Flush()
-		{
-			if (path is not null)
-				trees.Add(new Worktree(path, branch));
-			path = branch = null;
-		}
-		foreach (var line in (RunGit(root, "worktree", "list", "--porcelain") ?? "").Split('\n'))
-		{
-			var text = line.Trim();
-			if (text.StartsWith("worktree ", StringComparison.Ordinal))
-			{
-				Flush();
-				path = Path.GetFullPath(text["worktree ".Length..]);
-			}
-			else if (text.StartsWith("branch ", StringComparison.Ordinal))
-				branch = text["branch ".Length..].Replace("refs/heads/", "");
-			else if (text.StartsWith("HEAD ", StringComparison.Ordinal) && branch is null)
-				branch = "@" + text["HEAD ".Length..][..Math.Min(7, text.Length - "HEAD ".Length)];
-		}
-		Flush();
-		return trees;
-	}
-
-	static string? RunGit(string cwd, params string[] arguments)
+	internal static string? RunGit(string cwd, params string[] arguments)
 	{
 		try
 		{

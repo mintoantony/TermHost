@@ -73,27 +73,40 @@
   #status { position: relative; }
   #status .dot { position: absolute; top: 3px; right: 3px; display: none; box-shadow: 0 0 0 2px var(--chrome); }
   #status .dot.running, #status .dot.waiting { display: block; }
-  body.claude-open #status { background: var(--surface); color: var(--accent); }
+  body.claude-open #status, body.git-open #git { background: var(--surface); color: var(--accent); }
   .running { --c: var(--green); } .waiting { --c: var(--yellow); } .failed, .error { --c: var(--red); }
   .done, .tool { --c: var(--blue); } .idle, .unknown, .stopped { --c: var(--muted); } .prompt { --c: var(--accent); } .system { --c: var(--yellow); }
   .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
   .dot.running, .dot.waiting { animation: pulse 1.6s ease-in-out infinite; }
   @keyframes pulse { 50% { opacity: .35; } }
 
-  #claude { display: none; flex: none; flex-direction: column; width: 400px; min-height: 0; margin: 0 6px 6px 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
-  body.claude-open #claude { display: flex; }
+  .panel { display: none; flex: none; flex-direction: column; width: 400px; min-height: 0; margin: 0 6px 6px 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
+  body.claude-open #claude-panel, body.git-open #git-panel { display: flex; }
   .c-head { flex: none; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 12px; background: color-mix(in srgb, var(--surface) 45%, var(--bg)); }
   .c-head > .icon { color: var(--accent); }
   .c-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
   .c-head span { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 12px; color: var(--muted); }
-  #claude-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
-  #claude-body, .list { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
-  .c-empty { margin: auto; color: var(--muted); }
+  .panel-body { flex: 1; min-height: 0; overflow-y: auto; padding: 10px; display: flex; flex-direction: column; gap: 8px; }
+  .panel-body, .list { scrollbar-width: thin; scrollbar-color: var(--border) transparent; }
+  .c-empty { margin: auto; padding: 0 24px; text-align: center; color: var(--muted); }
   .c-section { display: flex; align-items: center; gap: 6px; margin: 8px 2px 0; font-size: 11px; font-weight: 600; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
   .c-section .icon, .card .icon { width: 12px; height: 12px; }
 
   .card { flex: none; border: 1px solid var(--border); border-radius: 9px; background: color-mix(in srgb, var(--surface) 30%, var(--bg)); }
   .card-meta .here { color: var(--accent); }
+  .repo-top { padding: 9px 10px 6px; }
+  .repo-top .row .icon { color: var(--muted); }
+  .link { color: var(--accent) !important; cursor: pointer; }
+  .link:hover { text-decoration: underline; }
+  .tree { border-top: 1px solid var(--border); }
+  .tree.open { background: color-mix(in srgb, var(--surface) 40%, transparent); }
+  .tree:last-child { border-radius: 0 0 8px 8px; }
+  .tree-top { padding: 5px 10px 7px; cursor: pointer; user-select: none; }
+  .tree-path { margin-left: 19px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: 11px; color: var(--muted); }
+  .tree-body { padding: 2px 10px 10px; }
+  .chip, .code { flex: none; font: 11px "Cascadia Mono", Consolas, monospace; color: var(--c, var(--muted)); }
+  .code { width: 18px; }
+  .staged, .clean { --c: var(--green); } .changed { --c: var(--yellow); } .untracked { --c: var(--muted); } .conflict { --c: var(--red); }
   .card.open { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
   .card-top { padding: 9px 10px; cursor: pointer; user-select: none; }
   .card-line { display: flex; align-items: center; gap: 8px; }
@@ -145,6 +158,7 @@
   <symbol id="i-prompt" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
   <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
+  <symbol id="i-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
 
@@ -158,6 +172,7 @@
       <span><svg class="icon"><use href="#i-grid"/></svg></span>
     </button>
     <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-bot"/></svg><span class="dot"></span></button>
+    <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
     <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
   </div>
 </header>
@@ -168,14 +183,23 @@
     <button id="empty-new" title="New terminal" aria-label="New terminal"><svg class="icon"><use href="#i-plus"/></svg></button>
     <span>No terminals open</span>
   </div>
-  <aside id="claude">
+  <aside id="claude-panel" class="panel">
     <div class="c-head">
       <svg class="icon"><use href="#i-bot"/></svg>
       <h2>Claude</h2>
       <span id="claude-summary"></span>
       <button id="claude-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
-    <div id="claude-body"></div>
+    <div id="claude-body" class="panel-body"></div>
+  </aside>
+  <aside id="git-panel" class="panel">
+    <div class="c-head">
+      <svg class="icon"><use href="#i-branch"/></svg>
+      <h2>Git</h2>
+      <span id="git-summary"></span>
+      <button id="git-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="git-body" class="panel-body"></div>
   </aside>
 </div>
 
@@ -436,15 +460,16 @@
     return html + '</div></div>';
   }
 
-  function worktreeCard(repo) {
-    const rows = repo.trees.map(tree => {
-      const live = tree.sessions.length;
-      return `<div class="row ${live ? 'running' : 'idle'}" title="${esc(tree.path)}">${icon('branch')}<b>${esc(tree.branch ?? 'no branch')}</b>
-        <span class="text">${esc(tree.main ? 'main worktree' : tree.path)}</span>
-        ${live ? `<span class="pill running">${live} session${live > 1 ? 's' : ''}</span>` : ''}</div>`;
-    }).join('');
-    return `<div class="card"><div class="card-body" style="border:0"><div class="card-line"><span class="card-title">${esc(repo.repo)}</span>
-      <span class="num" title="${esc(repo.root)}">${repo.trees.length} worktree${repo.trees.length > 1 ? 's' : ''}</span></div><div class="list">${rows}</div></div></div>`;
+  // Replaces a panel's content without throwing the reader back to the top of what they were reading.
+  function rebuild(body, html) {
+    const top = body.scrollTop;
+    const scrolled = [...body.querySelectorAll('[data-scroll]')].map(list => [list.dataset.scroll, list.scrollTop]);
+    body.innerHTML = html;
+    body.scrollTop = top;
+    for (const [name, position] of scrolled) {
+      const list = body.querySelector(`[data-scroll="${name}"]`);
+      if (list) list.scrollTop = position;
+    }
   }
 
   function renderClaude() {
@@ -454,32 +479,93 @@
     const summary = [`${sessions.length} session${sessions.length === 1 ? '' : 's'}`, running && `${running} running`, waiting && `${waiting} waiting`].filter(Boolean).join(' · ');
     $('status').dataset.tip = 'Claude status · ' + summary;
     $('status').querySelector('.dot').className = 'dot ' + (waiting ? 'waiting' : running ? 'running' : '');
-    if (!document.body.classList.contains('claude-open')) return;
+    if (panel !== 'claude') return;
 
     $('claude-summary').textContent = summary;
     const body = $('claude-body');
     if (!claude) { body.innerHTML = '<div class="c-empty">Reading Claude sessions…</div>'; return; }
     if (openSession === undefined) openSession = sessions[0]?.key;
-    // Rebuilding the list must not throw the reader back to the top of what they were reading.
-    const top = body.scrollTop;
-    const scrolled = [...body.querySelectorAll('[data-scroll]')].map(list => [list.dataset.scroll, list.scrollTop]);
-    body.innerHTML = (sessions.length ? sessions.map(sessionCard).join('') : '<div class="c-empty">No Claude sessions are running.</div>')
-      + (claude.worktrees.length ? `<div class="c-section">${icon('branch')}Worktrees</div>` + claude.worktrees.map(worktreeCard).join('') : '');
-    body.scrollTop = top;
-    for (const [name, position] of scrolled) {
-      const list = body.querySelector(`[data-scroll="${name}"]`);
-      if (list) list.scrollTop = position;
-    }
+    rebuild(body, sessions.length ? sessions.map(sessionCard).join('') : '<div class="c-empty">No Claude sessions are running.</div>');
   }
 
-  function toggleClaude(open) {
-    document.body.classList.toggle('claude-open', open);
+  // ---- Git panel: the repositories of the Claude sessions ----
+
+  let repos = null;   // the last repositories received; they only arrive while the panel is open
+  let openTree;       // path of the expanded worktree
+  const plural = (n, word) => `${n} ${word}${n === 1 ? '' : 's'}`;
+  const shortPath = path => '…\\' + path.split(/[\\/]/).filter(Boolean).slice(-2).join('\\');
+
+  function treeRow(tree) {
+    const open = tree.path === openTree;
+    const changes = [['staged', '+', tree.staged, 'staged'], ['changed', '~', tree.modified, 'modified'], ['untracked', '?', tree.untracked, 'untracked'], ['conflict', '!', tree.conflicts, 'in conflict']]
+      .filter(change => change[2]);
+    const sync = [tree.ahead && '↑' + tree.ahead, tree.behind && '↓' + tree.behind].filter(Boolean).join(' ');
+    const live = tree.sessions.length;
+    let html = `<div class="tree ${open ? 'open' : ''}"><div class="tree-top" data-tree="${esc(tree.path)}" title="${esc(tree.path)}">
+        <div class="row ${live ? 'running' : 'idle'}">${icon('branch')}<b>${esc(tree.branch ?? 'no branch')}</b>
+          <span class="chip" title="${esc(tree.upstream ? `${tree.ahead} ahead of ${tree.upstream}, ${tree.behind} behind` : '')}">${sync}</span><span class="text"></span>
+          ${changes.length ? changes.map(c => `<span class="chip ${c[0]}" title="${c[2]} ${c[3]}">${c[1]}${c[2]}</span>`).join('') : '<span class="chip clean">clean</span>'}
+          ${live ? `<span class="pill running">${plural(live, 'session')}</span>` : ''}</div>
+        <div class="tree-path">${tree.main ? 'main worktree' : esc(shortPath(tree.path))}</div></div>`;
+    if (!open) return html + '</div>';
+
+    const names = tree.sessions.map(key => claude?.sessions.find(s => s.key === key)).filter(Boolean).map(s => s.title || 'Session ' + s.pid);
+    const facts = [['Path', tree.path],
+      ['Upstream', tree.upstream ? `${tree.upstream} · ${tree.ahead || tree.behind ? [tree.ahead && tree.ahead + ' ahead', tree.behind && tree.behind + ' behind'].filter(Boolean).join(', ') : 'up to date'}` : 'none'],
+      ['Last commit', tree.commit ? `${tree.commit.hash} ${tree.commit.subject} · ${ago(tree.commit.at)}` : null],
+      ['Changes', changes.length ? changes.map(c => `${c[2]} ${c[3]}`).join(' · ') : 'working tree clean'],
+      ['Claude', names.join(', ')]];
+    html += `<div class="tree-body"><div class="kv">${facts.filter(f => f[1]).map(f => `<b>${f[0]}</b><span>${esc(f[1])}</span>`).join('')}</div>`;
+    if (tree.files.length)
+      html += `<div class="list" data-scroll="files" style="margin-top:8px">${tree.files.map(file =>
+        // XY: staged change, then unstaged; "." is none.
+        `<div class="row ${file.code === '?' ? 'untracked' : file.code === 'U' ? 'conflict' : file.code[1] === '.' ? 'staged' : 'changed'}" title="${esc(file.path)}">
+          <span class="code">${esc(file.code.replaceAll('.', '·'))}</span><span class="text">${esc(file.path)}</span></div>`).join('')}</div>`;
+    return html + '</div></div>';
+  }
+
+  function repoCard(repo) {
+    const remotes = repo.remotes.map(remote => `<div class="row">${icon('link')}<b>${esc(remote.name)}</b>` +
+      (remote.web ? `<a class="text link" data-url="${esc(remote.web)}" title="Open ${esc(remote.web)}">${esc(remote.url)}</a>` : `<span class="text">${esc(remote.url)}</span>`) + '</div>').join('');
+    return `<div class="card"><div class="repo-top"><div class="card-line"><span class="card-title" title="${esc(repo.root)}">${esc(repo.repo)}</span>
+      <span class="num">${plural(repo.trees.length, 'worktree')}</span></div>${remotes || '<div class="row idle"><span class="text">No remote</span></div>'}</div>
+      ${repo.trees.map(treeRow).join('')}</div>`;
+  }
+
+  function renderGit() {
+    if (panel !== 'git') return;
+    const body = $('git-body');
+    if (!repos) { body.innerHTML = '<div class="c-empty">Reading repositories…</div>'; return; }
+    $('git-summary').textContent = repos.length ? `${repos.length} ${repos.length === 1 ? 'repository' : 'repositories'} ·${plural(repos.reduce((n, repo) => n + repo.trees.length, 0), 'worktree')}` : '';
+    rebuild(body, repos.length ? repos.map(repoCard).join('')
+      : '<div class="c-empty">No repositories. This lists the repositories that have a Claude session running in them.</div>');
+  }
+
+  // ---- The side panel: Claude or Git, one at a time ----
+
+  let panel = null; // 'claude', 'git' or null
+
+  function showPanel(name) {
+    panel = panel === name ? null : name;
+    document.body.classList.toggle('claude-open', panel === 'claude');
+    document.body.classList.toggle('git-open', panel === 'git');
+    send({ t: 'git', open: panel === 'git' }); // git is only asked while its panel is open
     renderClaude();
+    renderGit();
     focusActive();
   }
 
-  $('status').onclick = () => toggleClaude();
-  $('claude-close').onclick = () => toggleClaude(false);
+  $('status').onclick = () => showPanel('claude');
+  $('git').onclick = () => showPanel('git');
+  $('claude-close').onclick = $('git-close').onclick = () => showPanel(panel);
+  $('git-body').onclick = e => {
+    const link = e.target.closest('.link');
+    if (link) return send({ t: 'open', url: link.dataset.url });
+    const top = e.target.closest('.tree-top');
+    if (!top) return;
+    openTree = openTree === top.dataset.tree ? null : top.dataset.tree;
+    renderGit();
+  };
   $('claude-body').onclick = e => {
     const top = e.target.closest('.card-top');
     if (!top) return;
@@ -492,7 +578,7 @@
       focusActive();
     }
   };
-  setInterval(renderClaude, 15000); // keeps the "ago" times moving while nothing changes
+  setInterval(() => { renderClaude(); renderGit(); }, 15000); // keeps the "ago" times moving while nothing changes
 
   window.addEventListener('HybridWebViewMessageReceived', e => {
     const msg = JSON.parse(e.detail.message);
@@ -503,7 +589,12 @@
       case 'new': addTerminal(msg.id, msg.title); break;
       case 'exit': removeTerminal(msg.id); break;
       case 'init': init(msg); break;
-      case 'status': claude = msg; renderClaude(); break;
+      case 'status':
+        claude = msg;
+        if (msg.git) repos = msg.git;
+        renderClaude();
+        renderGit();
+        break;
     }
   });
 

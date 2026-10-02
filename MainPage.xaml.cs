@@ -24,6 +24,9 @@ public partial class MainPage : ContentPage
 	// The last Claude status sent to the web view, so that only changes are sent.
 	string? _status;
 	bool _watching;
+	// Whether the Git panel is open: the reader asks git about the repositories only then.
+	volatile bool _gitOpen;
+	readonly SemaphoreSlim _refresh = new(0);
 
 	public MainPage()
 	{
@@ -72,7 +75,7 @@ public partial class MainPage : ContentPage
 			var claude = new ClaudeStatus();
 			while (!stop.IsCancellationRequested)
 			{
-				var status = claude.Snapshot(_sessions.ToDictionary(shell => shell.Value.ProcessId, shell => shell.Key));
+				var status = claude.Snapshot(_sessions.ToDictionary(shell => shell.Value.ProcessId, shell => shell.Key), _gitOpen);
 				Dispatcher.Dispatch(() =>
 				{
 					if (status == _status || stop.IsCancellationRequested)
@@ -82,7 +85,8 @@ public partial class MainPage : ContentPage
 				});
 				try
 				{
-					await Task.Delay(TimeSpan.FromSeconds(3), stop);
+					// Sooner when a panel asks for a refresh.
+					await _refresh.WaitAsync(TimeSpan.FromSeconds(3), stop);
 				}
 				catch (OperationCanceledException)
 				{
@@ -130,12 +134,23 @@ public partial class MainPage : ContentPage
 		switch (Text("t"))
 		{
 			case "ready":
+				_gitOpen = false; // a fresh page starts with its panels closed
 				SendInit();
 				NewTerminal();
 				WatchClaude();
 				break;
 			case "new":
 				NewTerminal();
+				break;
+			case "git":
+				_gitOpen = msg.GetProperty("open").GetBoolean();
+				if (_gitOpen)
+					_refresh.Release();
+				break;
+			case "open":
+				// A remote's web page. Only ever a web address: nothing else is handed to the system.
+				if (Uri.TryCreate(Text("url"), UriKind.Absolute, out var page) && page.Scheme is "http" or "https")
+					_ = Launcher.Default.OpenAsync(page);
 				break;
 			case "settings":
 				foreach (var key in new[] { "shell", "program", "theme", "layout" })
