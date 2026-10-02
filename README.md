@@ -33,8 +33,9 @@ Requirements:
 - Optional: [Claude Code](https://claude.com/claude-code) for the Claude panel, and
   `git` on the path for the Git panel.
 
-Build the installer (see [Build the installer](#build-the-installer)), then run
-`artifacts\TermHost-1.0.0-x64.msi`.
+Download `TermHost-1.0.0-x64.msi` from the
+[latest release](https://github.com/mintoantony/TermHost/releases/latest) and run it.
+You can also build the installer yourself: see [Build the installer](#build-the-installer).
 
 - It installs for the current user, into `%LOCALAPPDATA%\Programs\TermHost`, and adds a
   Start menu shortcut. No administrator rights are needed.
