@@ -49,6 +49,9 @@ You can also build the installer yourself: see [Build the installer](#build-the-
 - .NET and the Windows App SDK are included, so nothing else has to be installed.
 - The installer is not signed, so Windows may show a SmartScreen warning.
 - To remove it, use **Settings > Apps > Installed apps**. Your settings are kept.
+- To update, run the newer installer: it replaces the installed version. TermHost asks
+  GitHub once, each time it starts, what the latest release is, and tells you when there
+  is a newer one. Nothing else is sent.
 
 ## Use
 
@@ -62,6 +65,7 @@ The toolbar is at the top right. Hover over an icon for its name.
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
 | Gear | Opens the settings. |
+| Question mark | Shows the version, with links to this README and the GitHub repository. A green dot on the icon means a newer version is available; the dialog then has a button that downloads its installer. |
 
 **Settings** hold the default terminal, the startup program and the theme. They apply
 at once and are remembered. Leave the startup program empty for a plain shell. A fresh

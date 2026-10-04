@@ -28,6 +28,12 @@ public partial class MainPage : ContentPage
 	// Whether the Git panel is open: the reader asks git about the repositories only then.
 	volatile bool _gitOpen;
 	readonly SemaphoreSlim _refresh = new(0);
+	// What the latest release on GitHub is, once known: sent to the web view for its About dialog.
+	const string Repository = "https://github.com/mintoantony/TermHost";
+	string? _update;
+	bool _updateChecked;
+	// Closing the window: asked of the web view, which knows what is still running, and then allowed.
+	bool _closeHooked, _closeAsked, _closeAllowed;
 
 	public MainPage()
 	{
@@ -75,6 +81,7 @@ public partial class MainPage : ContentPage
 		{
 			["t"] = "init",
 			["shells"] = new JsonArray(_shells.Select(s => (JsonNode)s.Name).ToArray()),
+			["version"] = AppInfo.Current.VersionString,
 			// Where the "new terminal with options" dialog starts: the folder it used last.
 			["folder"] = Launched ? StartFolder : Preferences.Default.Get("folder", StartFolder),
 			["settings"] = new JsonObject
@@ -163,6 +170,9 @@ public partial class MainPage : ContentPage
 		{
 			case "ready":
 				_gitOpen = false; // a fresh page starts with its panels closed
+				_closeAsked = false;
+				ConfirmClosing();
+				CheckForUpdate();
 				SendInit();
 				NewTerminal();
 				WatchClaude();
@@ -194,6 +204,13 @@ public partial class MainPage : ContentPage
 			case "focus":
 				// The window of a session that runs outside this one, brought to the front.
 				ClaudeStatus.FocusHost(Number("pid"));
+				break;
+			case "stay":
+				_closeAsked = false;
+				break;
+			case "quit":
+				_closeAllowed = true;
+				Application.Current?.CloseWindow(Window);
 				break;
 			case "settings":
 				foreach (var key in new[] { "shell", "program", "theme", "layout" })
@@ -259,6 +276,71 @@ public partial class MainPage : ContentPage
 		}
 #else
 		await Task.CompletedTask;
+#endif
+	}
+
+	// Asks GitHub once for the latest release and tells the web view whether it is newer than this copy.
+	// Any failure (offline, rate limit, no release) is silent: the About dialog then says nothing about updates.
+	async void CheckForUpdate()
+	{
+		if (_update is not null)
+			Web.SendRawMessage(_update); // the page was reloaded: give it what we have
+		if (_updateChecked)
+			return;
+		_updateChecked = true;
+		try
+		{
+			using var http = new HttpClient { Timeout = TimeSpan.FromSeconds(10) };
+			http.DefaultRequestHeaders.UserAgent.ParseAdd("TermHost");
+			http.DefaultRequestHeaders.Accept.ParseAdd("application/vnd.github+json");
+			using var doc = JsonDocument.Parse(await http.GetStringAsync(
+				Repository.Replace("https://github.com/", "https://api.github.com/repos/") + "/releases/latest", _closing.Token));
+			var release = doc.RootElement;
+			var tag = release.GetProperty("tag_name").GetString() ?? "";
+			if (!Version.TryParse(tag.TrimStart('v', 'V'), out var latest))
+				return;
+			// The installer when the release has one, otherwise the release's page. Only ever this repository's.
+			var url = release.GetProperty("html_url").GetString();
+			if (release.TryGetProperty("assets", out var assets) && assets.ValueKind == JsonValueKind.Array)
+				foreach (var asset in assets.EnumerateArray())
+					if (asset.GetProperty("browser_download_url").GetString() is { } download && download.EndsWith(".msi", StringComparison.OrdinalIgnoreCase))
+						url = download;
+			if (url is null || !url.StartsWith(Repository + "/", StringComparison.OrdinalIgnoreCase))
+				url = Repository + "/releases/latest";
+			// 1.2 and 1.2.0 are the same version.
+			static Version Three(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
+			_update = new JsonObject
+			{
+				["t"] = "update",
+				["latest"] = Three(latest).ToString(),
+				["newer"] = Three(latest) > Three(AppInfo.Current.Version),
+				["url"] = url,
+			}.ToJsonString();
+			if (!_closing.IsCancellationRequested)
+				Web.SendRawMessage(_update);
+		}
+		catch (Exception)
+		{
+		}
+	}
+
+	// Holds the window open when its close button is used, and asks the web view: it closes at once
+	// when no Claude session is running in a terminal here, and otherwise asks the user first.
+	void ConfirmClosing()
+	{
+#if WINDOWS
+		if (_closeHooked || Window?.Handler?.PlatformView is not Microsoft.UI.Xaml.Window native)
+			return;
+		_closeHooked = true;
+		native.AppWindow.Closing += (_, e) =>
+		{
+			// A second close while the question is open goes through, so the window cannot get stuck.
+			if (_closeAllowed || _closeAsked)
+				return;
+			e.Cancel = true;
+			_closeAsked = true;
+			Web.SendRawMessage("{\"t\":\"closing\"}");
+		};
 #endif
 	}
 

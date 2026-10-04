@@ -158,6 +158,20 @@
   .text-btn { flex: none; height: 32px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); }
   .text-btn:hover { border-color: var(--accent); }
   .text-btn.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  #about-version { margin-left: 6px; font-size: 12px; font-weight: 400; color: var(--muted); }
+  #about-text { margin: 0 0 12px; color: var(--muted); }
+  .about-link { display: flex; align-items: center; gap: 11px; width: 100%; margin-top: 8px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; background: var(--bg); text-align: left; }
+  .about-link[hidden] { display: none; }
+  .about-link:hover { border-color: var(--accent); }
+  #about-update { border-color: var(--green); background: color-mix(in srgb, var(--green) 12%, var(--bg)); }
+  #about-update > .icon { color: var(--green); }
+  #about-latest { margin: -6px 0 12px; font-size: 12px; color: var(--muted); }
+  #help.update::before { content: ""; position: absolute; top: 4px; right: 4px; width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 0 2px var(--chrome); }
+  .about-link > .icon { color: var(--accent); }
+  .about-link b, .about-link small { display: block; }
+  .about-link b { font-weight: 600; }
+  .about-link small { margin-top: 1px; font-size: 12px; color: var(--muted); }
+  #quit-text { margin: 0; line-height: 1.5; }
   .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   .hint { margin: 5px 0 0; font-size: 12px; color: var(--muted); opacity: .8; }
   #launch-error { color: var(--red); opacity: 1; }
@@ -178,6 +192,7 @@
   <symbol id="i-tabs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M10 3v6"/></symbol>
   <symbol id="i-row" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
+  <symbol id="i-claude" viewBox="0 0 24 24"><path d="M12 12 22 12M12 12 19.5 16M12 12 16.5 20.4M12 12 12 22M12 12 7.8 19.4M12 12 3.6 16.5M12 12 2 12M12 12 4.2 7.5M12 12 7.5 3.6M12 12 12 2M12 12 16.2 4.6M12 12 20.4 7.5"/></symbol>
   <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
   <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
   <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
@@ -185,6 +200,9 @@
   <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
   <symbol id="i-link" viewBox="0 0 24 24"><path d="M15 3h6v6"/><path d="M10 14 21 3"/><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/></symbol>
+  <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
+  <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
 
@@ -199,9 +217,10 @@
       <button role="radio" data-mode="grid" data-tip="Tiles · drag the gaps to resize" aria-label="Tiles"><svg class="icon"><use href="#i-grid"/></svg></button>
       <button role="radio" data-mode="row" data-tip="Single row · drag the gaps to resize" aria-label="Single row"><svg class="icon"><use href="#i-row"/></svg></button>
     </div>
-    <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-bot"/></svg><span class="dot"></span></button>
+    <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-claude"/></svg><span class="dot"></span></button>
     <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
     <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
+    <button id="help" class="btn" data-tip="About and help" aria-label="About and help"><svg class="icon"><use href="#i-help"/></svg></button>
   </div>
 </header>
 
@@ -213,7 +232,7 @@
   </div>
   <aside id="claude-panel" class="panel">
     <div class="c-head">
-      <svg class="icon"><use href="#i-bot"/></svg>
+      <svg class="icon"><use href="#i-claude"/></svg>
       <h2>Claude</h2>
       <span id="claude-summary"></span>
       <button id="claude-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
@@ -266,6 +285,40 @@
       <button type="submit" class="text-btn primary">Start</button>
     </div>
   </form>
+</dialog>
+
+<dialog id="about">
+  <div class="dlg-head">
+    <svg class="icon"><use href="#i-terminal"/></svg>
+    <h2>TermHost<span id="about-version"></span></h2>
+    <button id="about-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+  </div>
+  <p id="about-text">Terminals in tabs, tiles or a row, with Claude and Git status.</p>
+  <p id="about-latest" hidden>You have the latest version.</p>
+  <button id="about-update" class="about-link" hidden>
+    <svg class="icon"><use href="#i-download"/></svg>
+    <span><b></b><small>Downloads the installer in your browser. Close TermHost, then run it.</small></span>
+  </button>
+  <button class="about-link" data-url="https://github.com/mintoantony/TermHost#readme" autofocus>
+    <svg class="icon"><use href="#i-book"/></svg>
+    <span><b>README</b><small>How to install and use TermHost</small></span>
+  </button>
+  <button class="about-link" data-url="https://github.com/mintoantony/TermHost">
+    <svg class="icon"><use href="#i-branch"/></svg>
+    <span><b>GitHub repository</b><small>github.com/mintoantony/TermHost</small></span>
+  </button>
+</dialog>
+
+<dialog id="quit">
+  <div class="dlg-head">
+    <svg class="icon"><use href="#i-alert"/></svg>
+    <h2>Close TermHost?</h2>
+  </div>
+  <p id="quit-text"></p>
+  <div class="dlg-foot">
+    <button id="quit-cancel" class="text-btn" autofocus>Cancel</button>
+    <button id="quit-ok" class="text-btn primary">Close</button>
+  </div>
 </dialog>
 
 <script src="_framework/hybridwebview.js"></script>
@@ -517,6 +570,7 @@
     $('shell').value = settings.shell;
     $('launch-shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
     lastFolder = msg.folder;
+    $('about-version').textContent = msg.version ? 'v' + msg.version : '';
     $('program').value = settings.program;
     $('themes').replaceChildren(...Object.entries(THEMES).map(([name, theme]) => {
       const swatch = document.createElement('button');
@@ -759,6 +813,8 @@
         break;
       case 'new': addTerminal(msg.id, msg.title); break;
       case 'exit': removeTerminal(msg.id); break;
+      case 'closing': confirmQuit(); break;
+      case 'update': showUpdate(msg); break;
       case 'picked': $('launch-folder').value = msg.folder; launchError(''); break;
       case 'launched': lastFolder = msg.folder; launch.close(); break;
       case 'launch-error': launchError(msg.error); $('launch-folder').focus(); break;
@@ -773,6 +829,42 @@
   });
 
   $('new').onclick = $('empty-new').onclick = () => send({ t: 'new' });
+  // About and help: the version and the project's pages, opened in the browser.
+  const about = $('about');
+  $('help').onclick = () => about.showModal();
+  $('about-close').onclick = () => about.close();
+  about.addEventListener('click', e => {
+    const link = e.target.closest('.about-link');
+    if (link) send({ t: 'open', url: link.dataset.url });
+    else if (e.target === about) about.close();
+  });
+  about.addEventListener('close', focusActive);
+  // The latest release, once the app has asked GitHub: a newer one is offered here and marked on the button.
+  function showUpdate(msg) {
+    $('about-latest').hidden = msg.newer;
+    $('about-update').hidden = !msg.newer;
+    $('about-update').dataset.url = msg.url;
+    $('about-update').querySelector('b').textContent = `Update available: version ${msg.latest}`;
+    $('help').classList.toggle('update', msg.newer);
+    $('help').dataset.tip = msg.newer ? 'Update available' : 'About and help';
+  }
+
+  // The window is closing: asked first while Claude is still working in one of its terminals.
+  const quit = $('quit');
+  function confirmQuit() {
+    const running = new Set(claude?.sessions.filter(s => s.status === 'running' && terms.has(s.terminal)).map(s => s.terminal)).size;
+    if (!running) return send({ t: 'quit' });
+    $('quit-text').textContent = (terms.size === 1 ? 'This terminal has a Claude session'
+      : `${running} of the ${terms.size} terminals ${running === 1 ? 'has a Claude session' : 'have Claude sessions'}`)
+      + ` still running. Closing the window stops ${running === 1 ? 'it' : 'them'}.`;
+    quit.returnValue = '';
+    quit.showModal();
+  }
+  $('quit-ok').onclick = () => quit.close('quit');
+  $('quit-cancel').onclick = () => quit.close();
+  quit.addEventListener('click', e => { if (e.target === quit) quit.close(); });
+  quit.addEventListener('close', () => { send({ t: quit.returnValue === 'quit' ? 'quit' : 'stay' }); focusActive(); });
+
   // New terminal with options: a shell, folder and command for one terminal, leaving the defaults alone.
   function launchError(text) {
     $('launch-error').textContent = text;
