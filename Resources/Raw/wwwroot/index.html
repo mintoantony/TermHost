@@ -51,8 +51,8 @@
 
   /* Terminals */
   #main { flex: 1; min-height: 0; display: flex; }
-  #panes { flex: 1; min-width: 0; min-height: 0; display: grid; gap: 6px; padding: 0 6px 6px; }
-  .pane { display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
+  #panes { flex: 1; min-width: 0; min-height: 0; position: relative; }
+  .pane { position: absolute; display: flex; flex-direction: column; min-width: 0; min-height: 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
   body.tabs .pane:not(.active) { display: none; }
   body.grid .pane.active { border-color: var(--accent); }
   .head { display: none; flex: none; align-items: center; gap: 7px; height: 26px; padding: 0 4px 0 10px; font-size: 12px; color: var(--muted); background: color-mix(in srgb, var(--surface) 45%, var(--bg)); user-select: none; }
@@ -61,6 +61,12 @@
   body.grid .pane.active .head { color: var(--fg); }
   body.grid .pane.active .head > .icon { color: var(--accent); }
   .term { flex: 1; min-height: 0; padding: 6px 2px 4px 8px; overflow: hidden; }
+  /* The gaps between tiled panes: drag to resize, double-click to even out. */
+  .handle { position: absolute; z-index: 1; border-radius: 3px; touch-action: none; transition: background .12s; }
+  .handle.col { width: 6px; cursor: col-resize; }
+  .handle.row { left: 6px; right: 6px; height: 6px; cursor: row-resize; }
+  .handle:hover, .handle:active { background: color-mix(in srgb, var(--accent) 60%, transparent); }
+  body.tabs .handle { display: none; }
 
   #empty { flex: 1; display: none; flex-direction: column; align-items: center; justify-content: center; gap: 12px; color: var(--muted); }
   #empty button { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 16px; background: var(--surface); color: var(--accent); }
@@ -360,21 +366,83 @@
     requestAnimationFrame(() => terms.get(activeId)?.term.focus());
   }
 
-  // Grid mode: a near-square grid, with the last pane stretched to fill any gap.
+  // Grid mode: near-square rows of panes. The weights are each row's share of the height and
+  // each pane's share of its row's width; dragging a gap moves weight between its two neighbours.
+  const GAP = 6, MIN_WIDTH = 120, MIN_HEIGHT = 80;
+  let rows = [], handles = [], shape = '';
+  let rowWeights = [], colWeights = [];
+  const even = n => Array(n).fill(1 / n);
+  const before = (weights, n) => weights.slice(0, n).reduce((a, b) => a + b, 0);
+
   function arrange() {
-    const grid = settings.layout === 'grid';
-    const count = grid ? Math.max(terms.size, 1) : 1;
-    const cols = Math.ceil(Math.sqrt(count));
-    const rows = Math.ceil(count / cols);
-    panesEl.style.gridTemplateColumns = `repeat(${cols}, minmax(0, 1fr))`;
-    panesEl.style.gridTemplateRows = `repeat(${rows}, minmax(0, 1fr))`;
     const panes = [...terms.values()].map(entry => entry.pane);
-    panes.forEach((pane, i) => {
-      const last = grid && i === panes.length - 1;
-      pane.style.gridColumn = last ? `span ${cols * rows - count + 1}` : '';
+    const cols = Math.ceil(Math.sqrt(panes.length));
+    rows = [];
+    for (let i = 0; i < panes.length; i += cols) rows.push(panes.slice(i, i + cols));
+    // Dragged sizes last until a terminal opening or closing changes the shape of the grid.
+    const key = rows.map(row => row.length).join();
+    if (key !== shape) {
+      shape = key;
+      rowWeights = even(rows.length);
+      colWeights = rows.map(row => even(row.length));
+    }
+    for (const handle of handles) handle.el.remove();
+    handles = [];
+    rows.forEach((row, r) => {
+      for (let i = 1; i < row.length; i++) addHandle('col', colWeights[r], i, r);
+      if (r) addHandle('row', rowWeights, r, r);
     });
+    place();
     document.body.classList.toggle('empty', terms.size === 0);
     $('count').textContent = terms.size === 1 ? '1 terminal' : `${terms.size} terminals`;
+  }
+
+  // The handle on the gap before entry i of weights: a pane of row r, or row r itself.
+  function addHandle(kind, weights, i, r) {
+    const el = document.createElement('div');
+    el.className = 'handle ' + kind;
+    const wide = kind === 'col';
+    el.onpointerdown = e => {
+      e.preventDefault();
+      el.setPointerCapture(e.pointerId);
+      const size = wide ? panesEl.clientWidth - GAP : panesEl.clientHeight;
+      const start = wide ? e.clientX : e.clientY, a = weights[i - 1], both = a + weights[i];
+      const min = Math.min((wide ? MIN_WIDTH : MIN_HEIGHT) / size, both / 2);
+      el.onpointermove = e => {
+        const moved = ((wide ? e.clientX : e.clientY) - start) / size;
+        weights[i - 1] = Math.max(min, Math.min(both - min, a + moved));
+        weights[i] = both - weights[i - 1];
+        place();
+        fitAll();
+      };
+    };
+    el.onpointerup = el.onpointercancel = () => { el.onpointermove = null; focusActive(); };
+    el.ondblclick = () => { weights.fill(1 / weights.length); place(); fitAll(); };
+    panesEl.appendChild(el);
+    handles.push({ el, wide, i, r });
+  }
+
+  // Positions the panes and handles from the weights; in tabs mode every pane fills the area.
+  function place() {
+    const grid = settings.layout === 'grid';
+    const left = x => `calc(${GAP}px + ${x} * (100% - ${GAP}px))`;
+    rows.forEach((row, r) => row.forEach((pane, i) => {
+      const [x, y, w, h] = grid ? [before(colWeights[r], i), before(rowWeights, r), colWeights[r][i], rowWeights[r]] : [0, 0, 1, 1];
+      pane.style.left = left(x);
+      pane.style.top = y * 100 + '%';
+      pane.style.width = `calc(${w} * (100% - ${GAP}px) - ${GAP}px)`;
+      pane.style.height = `calc(${h * 100}% - ${GAP}px)`;
+    }));
+    for (const { el, wide, i, r } of handles) {
+      const y = before(rowWeights, r);
+      if (wide) {
+        el.style.left = `calc(${before(colWeights[r], i)} * (100% - ${GAP}px))`;
+        el.style.top = y * 100 + '%';
+        el.style.height = `calc(${rowWeights[r] * 100}% - ${GAP}px)`;
+      } else {
+        el.style.top = `calc(${y * 100}% - ${GAP}px)`;
+      }
+    }
   }
 
   function fitAll() {
@@ -390,7 +458,7 @@
     document.body.classList.toggle('grid', grid);
     document.body.classList.toggle('tabs', !grid);
     $('layout').setAttribute('aria-checked', grid);
-    $('layout').dataset.tip = grid ? 'Tiled evenly · click for tabs' : 'Tabs · click to tile evenly';
+    $('layout').dataset.tip = grid ? 'Tiled · drag the gaps to resize · click for tabs' : 'Tabs · click to tile';
     arrange();
     fitAll();
   }

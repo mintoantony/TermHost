@@ -8,8 +8,9 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
 
 ## Features
 
-- **Any number of terminals** in one window, shown as **tabs** or **tiled evenly** in a
-  grid. One toggle switches between the two.
+- **Any number of terminals** in one window, shown as **tabs** or **tiled** in a grid.
+  One toggle switches between the two. In the grid, drag the gap between two terminals
+  to resize them; double-click a gap to even the sizes out again.
 - **Shells:** PowerShell 7, Windows PowerShell, Command Prompt and WSL (the ones found
   on the machine).
 - **Startup program:** a command that runs in every new terminal, such as `claude`,
@@ -52,7 +53,7 @@ The toolbar is at the top right. Hover over an icon for its name.
 | Icon | What it does |
 |---|---|
 | Plus | Opens a new terminal: the default terminal, running the startup program. |
-| Tabs / grid switch | Switches between tabs and an even grid of all terminals. |
+| Tabs / grid switch | Switches between tabs and a grid of all terminals. |
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
 | Gear | Opens the settings. |
