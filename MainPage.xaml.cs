@@ -1,4 +1,5 @@
 using System.Collections.Concurrent;
+using System.Diagnostics;
 using System.Text;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -151,6 +152,11 @@ public partial class MainPage : ContentPage
 				// A remote's web page. Only ever a web address: nothing else is handed to the system.
 				if (Uri.TryCreate(Text("url"), UriKind.Absolute, out var page) && page.Scheme is "http" or "https")
 					_ = Launcher.Default.OpenAsync(page);
+				break;
+			case "folder":
+				// A session's directory, shown in File Explorer. Only ever an existing directory.
+				if (Directory.Exists(Text("path")))
+					Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { Path.GetFullPath(Text("path")) } })?.Dispose();
 				break;
 			case "settings":
 				foreach (var key in new[] { "shell", "program", "theme", "layout" })
