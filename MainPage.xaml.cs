@@ -31,6 +31,10 @@ public partial class MainPage : ContentPage
 	// What the latest release on GitHub is, once known: sent to the web view for its About dialog.
 	const string Repository = "https://github.com/mintoantony/TermHost";
 	string? _update;
+	// The version the build was given. Not AppInfo's: without a package that one is always 1.0.
+	static readonly Version AppVersion = Three(typeof(MainPage).Assembly.GetName().Version ?? new Version(0, 0));
+	// 1.2 and 1.2.0 are the same version.
+	static Version Three(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 	bool _updateChecked;
 	// Closing the window: asked of the web view, which knows what is still running, and then allowed.
 	bool _closeHooked, _closeAsked, _closeAllowed;
@@ -81,7 +85,7 @@ public partial class MainPage : ContentPage
 		{
 			["t"] = "init",
 			["shells"] = new JsonArray(_shells.Select(s => (JsonNode)s.Name).ToArray()),
-			["version"] = AppInfo.Current.VersionString,
+			["version"] = AppVersion.ToString(),
 			// Where the "new terminal with options" dialog starts: the folder it used last.
 			["folder"] = Launched ? StartFolder : Preferences.Default.Get("folder", StartFolder),
 			["settings"] = new JsonObject
@@ -307,13 +311,11 @@ public partial class MainPage : ContentPage
 						url = download;
 			if (url is null || !url.StartsWith(Repository + "/", StringComparison.OrdinalIgnoreCase))
 				url = Repository + "/releases/latest";
-			// 1.2 and 1.2.0 are the same version.
-			static Version Three(Version v) => new(v.Major, v.Minor, Math.Max(v.Build, 0));
 			_update = new JsonObject
 			{
 				["t"] = "update",
 				["latest"] = Three(latest).ToString(),
-				["newer"] = Three(latest) > Three(AppInfo.Current.Version),
+				["newer"] = Three(latest) > AppVersion,
 				["url"] = url,
 			}.ToJsonString();
 			if (!_closing.IsCancellationRequested)
