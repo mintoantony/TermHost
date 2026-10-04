@@ -117,7 +117,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.5.0   # artifacts\TermHost-1.5.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.6.0   # artifacts\TermHost-1.6.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.
