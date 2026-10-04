@@ -191,6 +191,10 @@ public partial class MainPage : ContentPage
 				if (Directory.Exists(Text("path")))
 					Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { Path.GetFullPath(Text("path")) } })?.Dispose();
 				break;
+			case "focus":
+				// The window of a session that runs outside this one, brought to the front.
+				ClaudeStatus.FocusHost(Number("pid"));
+				break;
 			case "settings":
 				foreach (var key in new[] { "shell", "program", "theme", "layout" })
 					Preferences.Default.Set(key, Text(key));

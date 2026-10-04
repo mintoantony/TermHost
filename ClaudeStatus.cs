@@ -56,7 +56,7 @@ public sealed partial class ClaudeStatus
 	{
 		var now = DateTime.UtcNow;
 		var sessions = new List<Session>();
-		var parents = shells.Count > 0 ? ParentPids() : [];
+		var parents = ParentPids();
 		foreach (var file in RegistryFiles())
 		{
 			try
@@ -64,6 +64,9 @@ public sealed partial class ClaudeStatus
 				if (ReadSession(file, now) is { } session)
 				{
 					session.Terminal = TerminalOf(session.Pid, shells, parents);
+					// A session started anywhere else names the application whose window it runs in.
+					if (session.Terminal is null)
+						session.Host = HostOf(session.Pid, parents)?.Name;
 					sessions.Add(session);
 				}
 			}
@@ -103,7 +106,7 @@ public sealed partial class ClaudeStatus
 	{
 		public int Pid;
 		public int? Terminal;
-		public string? Id, Name, Title, Cwd, Model, WaitingFor, Version, Kind;
+		public string? Id, Name, Title, Cwd, Model, WaitingFor, Version, Kind, Host;
 		public string Status = "unknown";
 		public long? Started, Last;
 		public long Tokens;
@@ -117,6 +120,7 @@ public sealed partial class ClaudeStatus
 			["key"] = Pid.ToString(CultureInfo.InvariantCulture),
 			["pid"] = Pid,
 			["terminal"] = Terminal,
+			["host"] = Host,
 			["id"] = Id,
 			["title"] = Title ?? Name,
 			["cwd"] = Cwd,
@@ -254,6 +258,89 @@ public sealed partial class ClaudeStatus
 		}
 		return null;
 	}
+
+	// The window a session outside this window runs in: that of the nearest ancestor of the
+	// session's process that has one, such as Windows Terminal or an editor. Null when none is
+	// found, as for a classic console window, which belongs to a process that is not an ancestor.
+	static (IntPtr Window, string Name)? HostOf(int pid, Dictionary<int, int> parents)
+	{
+		var started = StartTime(pid);
+		for (int depth = 0; depth < 32 && started is not null; depth++)
+		{
+			if (!parents.TryGetValue(pid, out int parent) || parent == pid)
+				return null;
+			var parentStarted = StartTime(parent);
+			if (parentStarted is null || parentStarted > started)
+				return null;
+			try
+			{
+				using var process = Process.GetProcessById(parent);
+				// Explorer only started the shell: its windows are folders, not the session's.
+				if (process.ProcessName.Equals("explorer", StringComparison.OrdinalIgnoreCase))
+					return null;
+				if (process.MainWindowHandle != IntPtr.Zero)
+					return (process.MainWindowHandle, AppName(process));
+			}
+			catch (Exception e) when (e is ArgumentException or InvalidOperationException or Win32Exception)
+			{
+				return null;
+			}
+			(pid, started) = (parent, parentStarted);
+		}
+		return null;
+	}
+
+	static string AppName(Process process)
+	{
+		switch (process.ProcessName.ToLowerInvariant())
+		{
+			case "windowsterminal": return "Windows Terminal";
+			case "code": return "Visual Studio Code";
+			case "termhost": return "another TermHost window";
+		}
+		try
+		{
+			if (process.MainModule?.FileVersionInfo.FileDescription is { Length: > 0 } description)
+				return description;
+		}
+		catch (Exception e) when (e is InvalidOperationException or Win32Exception)
+		{
+			// Not allowed to look at the executable: its name will do.
+		}
+		return process.ProcessName;
+	}
+
+	/// <summary>Brings the window a Claude session runs in to the front. Only ever acts on a Claude Code process.</summary>
+	public static void FocusHost(int pid)
+	{
+		try
+		{
+			using var process = Process.GetProcessById(pid);
+			var name = process.ProcessName.ToLowerInvariant();
+			if (name != "node" && !name.StartsWith("claude", StringComparison.Ordinal))
+				return;
+		}
+		catch (Exception e) when (e is ArgumentException or InvalidOperationException or Win32Exception)
+		{
+			return;
+		}
+		if (HostOf(pid, ParentPids()) is not { } host)
+			return;
+		if (IsIconic(host.Window))
+			ShowWindow(host.Window, SW_RESTORE);
+		SetForegroundWindow(host.Window);
+	}
+
+	const int SW_RESTORE = 9;
+
+	[DllImport("user32.dll")]
+	static extern bool SetForegroundWindow(IntPtr hWnd);
+
+	[DllImport("user32.dll")]
+	static extern bool IsIconic(IntPtr hWnd);
+
+	[DllImport("user32.dll")]
+	static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
 
 	static DateTime? StartTime(int pid)
 	{

@@ -110,6 +110,7 @@
 
   .card { flex: none; border: 1px solid var(--border); border-radius: 9px; background: color-mix(in srgb, var(--surface) 30%, var(--bg)); }
   .card-meta .here { color: var(--accent); }
+  .ext { --c: var(--blue); }
   .repo-top { padding: 9px 10px 6px; }
   .repo-top .row .icon { color: var(--muted); }
   .link { color: var(--accent) !important; cursor: pointer; }
@@ -549,6 +550,7 @@
     const open = s.key === openSession;
     const meta = [];
     // A session running in one of this window's terminals names it: a click jumps there.
+    // Any other session is labelled External: a click brings the window it runs in to the front.
     const here = terms.get(s.terminal);
     if (here) meta.push(`<span class="here" title="Click to jump to this terminal">${icon('terminal')}${esc(here.tab.querySelector('span').textContent)}</span>`);
     if (s.repo) meta.push(icon('branch') + esc(s.repo) + (s.branch ? ' · ' + esc(s.branch) : ''));
@@ -558,7 +560,7 @@
     if (s.last) meta.push(ago(s.last));
     let html = `<div class="card ${open ? 'open' : ''}"><div class="card-top" data-key="${esc(s.key)}">
         <div class="card-line"><span class="dot ${s.status}"></span><span class="card-title">${esc(s.title || s.repo || s.cwd || 'Session ' + s.pid)}</span>
-        <span class="pill ${s.status}" title="${esc(s.waitingFor)}">${STATUS[s.status] ?? esc(s.status)}</span></div>
+        ${here ? '' : `<span class="pill ext" title="${esc(s.host ? `Runs in ${s.host} · click to switch to it` : 'Runs outside TermHost')}">External</span>`}<span class="pill ${s.status}" title="${esc(s.waitingFor)}">${STATUS[s.status] ?? esc(s.status)}</span></div>
         <div class="card-meta">${meta.map(m => `<span>${m}</span>`).join('')}</div></div>`;
     if (!open) return html + '</div>';
 
@@ -724,11 +726,14 @@
     if (!top) return;
     openSession = openSession === top.dataset.key ? null : top.dataset.key;
     renderClaude();
-    const terminal = claude.sessions.find(s => s.key === top.dataset.key)?.terminal;
-    if (terms.has(terminal)) {
-      activate(terminal);
-      terms.get(terminal).tab.scrollIntoView();
+    const session = claude.sessions.find(s => s.key === top.dataset.key);
+    if (terms.has(session?.terminal)) {
+      activate(session.terminal);
+      terms.get(session.terminal).tab.scrollIntoView();
       focusActive();
+    } else if (session?.host && openSession === session.key) {
+      // Opening an external session also switches to its window; closing the card stays here.
+      send({ t: 'focus', pid: session.pid });
     }
   };
   setInterval(() => { renderClaude(); renderGit(); }, 15000); // keeps the "ago" times moving while nothing changes

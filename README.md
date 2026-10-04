@@ -74,7 +74,10 @@ change the settings.
 
 **Claude panel:** click a session to expand it. A session that runs in one of this
 window's terminals shows that terminal's name; clicking it also switches to the
-terminal.
+terminal. A session that runs anywhere else is labelled **External**; opening it also
+brings the window it runs in to the front, when that window can be found (Windows
+Terminal, Visual Studio Code or another TermHost window, but not a classic console
+window). It switches to the window, not to a tab inside it.
 
 **Git panel:** click a worktree to see its path, upstream, last commit and changed
 files. Click a remote to open its web page. Counts on a worktree row: `+` staged,
@@ -109,7 +112,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.3.0   # artifacts\TermHost-1.3.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.4.0   # artifacts\TermHost-1.4.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.
