@@ -8,7 +8,7 @@ namespace TermHost;
 
 public partial class MainPage : ContentPage
 {
-	enum ShellKind { PowerShell, Cmd, Wsl }
+	enum ShellKind { PowerShell, Cmd, Wsl, Bash }
 
 	record Shell(string Name, string Command, ShellKind Kind);
 
@@ -158,6 +158,7 @@ public partial class MainPage : ContentPage
 			// Encoded so quotes and spaces in the program survive command-line parsing.
 			ShellKind.PowerShell => $"{shell.Command} -NoExit -EncodedCommand {Convert.ToBase64String(Encoding.Unicode.GetBytes(program))}",
 			ShellKind.Cmd => $"{shell.Command} /K \"{program}\"",
+			ShellKind.Bash => $"{shell.Command} -c \"{program.Replace("\"", "\\\"")}; exec bash --login -i\"",
 			_ => $"{shell.Command} -e bash -lic \"{program.Replace("\"", "\\\"")}; exec bash\"",
 		};
 	}
@@ -422,7 +423,36 @@ public partial class MainPage : ContentPage
 		shells.Add(new("Command Prompt", "cmd.exe", ShellKind.Cmd));
 		if (OnPath("wsl.exe"))
 			shells.Add(new("WSL", "wsl.exe", ShellKind.Wsl));
+		if (GitBash() is { } bash)
+		{
+			shells.Add(new("Git Bash", $"\"{bash}\" --login -i", ShellKind.Bash));
+			// A login shell goes to the home folder unless told to stay where it was started.
+			Environment.SetEnvironmentVariable("CHERE_INVOKING", "1");
+		}
 		return shells;
+	}
+
+	// The bash of Git for Windows: beside the git on the path, or in the usual install folders.
+	// Never a bash.exe found on the path itself: in System32 that one is WSL.
+	static string? GitBash()
+	{
+		var roots = new List<string>();
+		foreach (var dir in (Environment.GetEnvironmentVariable("PATH") ?? "").Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries))
+		{
+			try
+			{
+				// git.exe is in the cmd folder of Git, or in its mingw64/bin.
+				if (File.Exists(Path.Combine(dir.Trim(), "git.exe")))
+					roots.AddRange([Path.Combine(dir.Trim(), ".."), Path.Combine(dir.Trim(), "..", "..")]);
+			}
+			catch (ArgumentException)
+			{
+			}
+		}
+		foreach (var folder in new[] { Environment.SpecialFolder.ProgramFiles, Environment.SpecialFolder.ProgramFilesX86 })
+			roots.Add(Path.Combine(Environment.GetFolderPath(folder), "Git"));
+		roots.Add(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Programs", "Git"));
+		return roots.Select(root => Path.GetFullPath(Path.Combine(root, "bin", "bash.exe"))).FirstOrDefault(File.Exists);
 	}
 
 	static bool OnPath(string exe) =>

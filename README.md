@@ -12,8 +12,8 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
   side by side in a **single row**. One control switches between the three. In the grid
   and the row, drag the gap between two terminals to resize them; double-click a gap to
   even the sizes out again.
-- **Shells:** PowerShell 7, Windows PowerShell, Command Prompt and WSL (the ones found
-  on the machine).
+- **Shells:** PowerShell 7, Windows PowerShell, Command Prompt, WSL and Git Bash (the
+  ones found on the machine).
 - **Startup program:** a command that runs in every new terminal, such as `claude`,
   `copilot` or a script. The shell stays open when the program ends.
 - **Themes:** Catppuccin Mocha, Tokyo Night, Dracula, Rosé Pine, Nord, Gruvbox, One Dark
@@ -120,7 +120,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.7.0   # artifacts\TermHost-1.7.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.8.0   # artifacts\TermHost-1.8.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.
