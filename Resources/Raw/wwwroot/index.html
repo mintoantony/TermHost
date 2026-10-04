@@ -38,8 +38,8 @@
   #new { color: var(--accent); }
   #new-more { color: var(--accent); }
   #layout { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); }
-  #layout span { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; color: var(--muted); transition: background .15s, color .15s; }
-  body.tabs #layout span:first-child, body.grid #layout span:last-child { background: var(--accent); color: var(--accent-fg); }
+  #layout button { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; color: var(--muted); transition: background .15s, color .15s; }
+  #layout button[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); }
 
   /* Tooltips */
   [data-tip] { position: relative; }
@@ -176,6 +176,7 @@
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
   <symbol id="i-tabs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M10 3v6"/></symbol>
+  <symbol id="i-row" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
   <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
   <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
@@ -193,10 +194,11 @@
   <div id="actions">
     <button id="new" class="btn" data-tip="New terminal" aria-label="New terminal"><svg class="icon"><use href="#i-plus"/></svg></button>
     <button id="new-more" class="btn" data-tip="New terminal in a folder…" aria-label="New terminal with options"><svg class="icon"><use href="#i-folder-plus"/></svg></button>
-    <button id="layout" role="switch" aria-label="Tile terminals evenly">
-      <span><svg class="icon"><use href="#i-tabs"/></svg></span>
-      <span><svg class="icon"><use href="#i-grid"/></svg></span>
-    </button>
+    <div id="layout" role="radiogroup" aria-label="Layout">
+      <button role="radio" data-mode="tabs" data-tip="Tabs" aria-label="Tabs"><svg class="icon"><use href="#i-tabs"/></svg></button>
+      <button role="radio" data-mode="grid" data-tip="Tiles · drag the gaps to resize" aria-label="Tiles"><svg class="icon"><use href="#i-grid"/></svg></button>
+      <button role="radio" data-mode="row" data-tip="Single row · drag the gaps to resize" aria-label="Single row"><svg class="icon"><use href="#i-row"/></svg></button>
+    </div>
     <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-bot"/></svg><span class="dot"></span></button>
     <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
     <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
@@ -412,7 +414,7 @@
     requestAnimationFrame(() => terms.get(activeId)?.term.focus());
   }
 
-  // Grid mode: near-square rows of panes. The weights are each row's share of the height and
+  // Tiled modes: near-square rows of panes, or all of them in one row. The weights are each row's share of the height and
   // each pane's share of its row's width; dragging a gap moves weight between its two neighbours.
   const GAP = 6, MIN_WIDTH = 120, MIN_HEIGHT = 80;
   let rows = [], handles = [], shape = '';
@@ -422,7 +424,7 @@
 
   function arrange() {
     const panes = [...terms.values()].map(entry => entry.pane);
-    const cols = Math.ceil(Math.sqrt(panes.length));
+    const cols = settings.layout === 'row' ? panes.length : Math.ceil(Math.sqrt(panes.length));
     rows = [];
     for (let i = 0; i < panes.length; i += cols) rows.push(panes.slice(i, i + cols));
     // Dragged sizes last until a terminal opening or closing changes the shape of the grid.
@@ -470,7 +472,7 @@
 
   // Positions the panes and handles from the weights; in tabs mode every pane fills the area.
   function place() {
-    const grid = settings.layout === 'grid';
+    const grid = settings.layout !== 'tabs';
     const left = x => `calc(${GAP}px + ${x} * (100% - ${GAP}px))`;
     rows.forEach((row, r) => row.forEach((pane, i) => {
       const [x, y, w, h] = grid ? [before(colWeights[r], i), before(rowWeights, r), colWeights[r][i], rowWeights[r]] : [0, 0, 1, 1];
@@ -499,12 +501,12 @@
   }
 
   function setLayout(mode) {
-    const grid = mode === 'grid';
-    settings.layout = grid ? 'grid' : 'tabs';
+    settings.layout = mode === 'grid' || mode === 'row' ? mode : 'tabs';
+    // Tiles and the single row share the body class and styles; only the arrangement differs.
+    const grid = settings.layout !== 'tabs';
     document.body.classList.toggle('grid', grid);
     document.body.classList.toggle('tabs', !grid);
-    $('layout').setAttribute('aria-checked', grid);
-    $('layout').dataset.tip = grid ? 'Tiled · drag the gaps to resize · click for tabs' : 'Tabs · click to tile';
+    for (const button of $('layout').children) button.setAttribute('aria-checked', button.dataset.mode === settings.layout);
     arrange();
     fitAll();
   }
@@ -793,7 +795,8 @@
   $('launch-close').onclick = $('launch-cancel').onclick = () => launch.close();
   launch.addEventListener('click', e => { if (e.target === launch) launch.close(); });
   launch.addEventListener('close', focusActive);
-  $('layout').onclick = () => { setLayout(settings.layout === 'grid' ? 'tabs' : 'grid'); saveSettings(); focusActive(); };
+  for (const button of $('layout').children)
+    button.onclick = () => { setLayout(button.dataset.mode); saveSettings(); focusActive(); };
   $('settings').onclick = () => dialog.showModal();
   $('dialog-close').onclick = () => dialog.close();
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });

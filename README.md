@@ -8,9 +8,10 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
 
 ## Features
 
-- **Any number of terminals** in one window, shown as **tabs** or **tiled** in a grid.
-  One toggle switches between the two. In the grid, drag the gap between two terminals
-  to resize them; double-click a gap to even the sizes out again.
+- **Any number of terminals** in one window, shown as **tabs**, **tiled** in a grid, or
+  side by side in a **single row**. One control switches between the three. In the grid
+  and the row, drag the gap between two terminals to resize them; double-click a gap to
+  even the sizes out again.
 - **Shells:** PowerShell 7, Windows PowerShell, Command Prompt and WSL (the ones found
   on the machine).
 - **Startup program:** a command that runs in every new terminal, such as `claude`,
@@ -57,7 +58,7 @@ The toolbar is at the top right. Hover over an icon for its name.
 |---|---|
 | Plus | Opens a new terminal: the default terminal, running the startup program. |
 | Folder with a plus | Opens a dialog to choose the terminal, the folder and the command for one new terminal. |
-| Tabs / grid switch | Switches between tabs and a grid of all terminals. |
+| Tabs / tiles / row | Chooses the layout: tabs, a grid of all terminals, or all terminals side by side in a single row. In the grid and the row, drag the gaps to resize. |
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
 | Gear | Opens the settings. |
@@ -112,7 +113,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.4.0   # artifacts\TermHost-1.4.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.5.0   # artifacts\TermHost-1.5.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.
