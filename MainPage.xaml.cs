@@ -94,6 +94,7 @@ public partial class MainPage : ContentPage
 				["program"] = Preferences.Default.Get("program", DefaultProgram),
 				["theme"] = Preferences.Default.Get("theme", "Catppuccin Mocha"),
 				["layout"] = Preferences.Default.Get("layout", "tabs"),
+				["glass"] = Preferences.Default.Get("glass", "0"),
 			},
 		};
 		Web.SendRawMessage(init.ToJsonString());
@@ -217,11 +218,11 @@ public partial class MainPage : ContentPage
 				Application.Current?.CloseWindow(Window);
 				break;
 			case "settings":
-				foreach (var key in new[] { "shell", "program", "theme", "layout" })
+				foreach (var key in new[] { "shell", "program", "theme", "layout", "glass" })
 					Preferences.Default.Set(key, Text(key));
 				break;
 			case "chrome":
-				ApplyChrome(Text("bg"), Text("fg"), msg.GetProperty("dark").GetBoolean());
+				ApplyChrome(Text("bg"), Text("fg"), msg.GetProperty("dark").GetBoolean(), msg.GetProperty("glass").GetDouble());
 				break;
 			case "start":
 				Start(Number("id"), Number("cols"), Number("rows"));
@@ -347,11 +348,15 @@ public partial class MainPage : ContentPage
 	}
 
 	// Keeps the native window chrome in step with the theme chosen in the web view.
-	void ApplyChrome(string background, string foreground, bool dark)
+	// Glass is how see-through the window's background is, 0 (solid) to 1: the desktop then shows
+	// through it blurred, under the same tint the web view paints over its own area.
+	void ApplyChrome(string background, string foreground, bool dark, double glass)
 	{
 		if (!Color.TryParse(background, out var bg) || !Color.TryParse(foreground, out var fg))
 			return;
-		BackgroundColor = bg;
+		glass = Math.Clamp(glass, 0, 1);
+		BackgroundColor = glass > 0 ? Colors.Transparent : bg;
+		bg = bg.WithAlpha((float)(1 - glass));
 		if (Application.Current is { } app)
 			app.UserAppTheme = dark ? AppTheme.Dark : AppTheme.Light;
 		if (Window?.TitleBar is TitleBar bar)
@@ -363,6 +368,10 @@ public partial class MainPage : ContentPage
 		// The minimise/maximise/close glyphs do not follow the title bar's foreground on their own.
 		if (Window?.Handler?.PlatformView is Microsoft.UI.Xaml.Window native)
 		{
+			if (glass > 0)
+				native.SystemBackdrop ??= new Microsoft.UI.Xaml.Media.DesktopAcrylicBackdrop();
+			else
+				native.SystemBackdrop = null;
 			var glyph = Windows.UI.Color.FromArgb(255, (byte)(fg.Red * 255), (byte)(fg.Green * 255), (byte)(fg.Blue * 255));
 			var caption = native.AppWindow.TitleBar;
 			caption.ButtonForegroundColor = glyph;

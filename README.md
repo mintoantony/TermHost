@@ -67,8 +67,10 @@ The toolbar is at the top right. Hover over an icon for its name.
 | Gear | Opens the settings. |
 | Question mark | Shows the version, with links to this README and the GitHub repository. A green dot on the icon means a newer version is available; the dialog then has a button that downloads its installer. |
 
-**Settings** hold the default terminal, the startup program and the theme. They apply
-at once and are remembered. Leave the startup program empty for a plain shell. A fresh
+**Settings** hold the default terminal, the startup program, the window transparency and
+the theme. They apply at once and are remembered. With the transparency above zero, the
+desktop shows blurred through the window's background (the title bar, the toolbar and the
+gaps between terminals); terminals, panels and dialogs stay solid. Leave the startup program empty for a plain shell. A fresh
 install starts with `claude` as the startup program.
 
 **Folders:** new terminals start in your home folder. When you start TermHost with
@@ -82,7 +84,8 @@ window's terminals shows that terminal's name; clicking it also switches to the
 terminal. A session that runs anywhere else is labelled **External**; opening it also
 brings the window it runs in to the front, when that window can be found (Windows
 Terminal, Visual Studio Code or another TermHost window, but not a classic console
-window). It switches to the window, not to a tab inside it.
+window). It switches to the window, not to a tab inside it. A session with Remote
+Control on shows a **Remote Control** link that opens it in the browser.
 
 **Git panel:** click a worktree to see its path, upstream, last commit and changed
 files. Click a remote to open its web page. Counts on a worktree row: `+` staged,
@@ -117,7 +120,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.6.1   # artifacts\TermHost-1.6.1-x64.msi
+    pwsh installer\build.ps1 -Version 1.7.0   # artifacts\TermHost-1.7.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.

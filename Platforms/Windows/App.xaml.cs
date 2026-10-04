@@ -20,6 +20,8 @@ public partial class App : MauiWinUIApplication
 		// copy may not be allowed to write to: keep it with the user's other app data.
 		Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER",
 			Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "TermHost", "WebView2"));
+		// The web view draws no background of its own: the page paints it, solid or as glass.
+		Environment.SetEnvironmentVariable("WEBVIEW2_DEFAULT_BACKGROUND_COLOR", "00FFFFFF");
 		this.InitializeComponent();
 	}
 

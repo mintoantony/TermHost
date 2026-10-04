@@ -106,7 +106,7 @@ public sealed partial class ClaudeStatus
 	{
 		public int Pid;
 		public int? Terminal;
-		public string? Id, Name, Title, Cwd, Model, WaitingFor, Version, Kind, Host;
+		public string? Id, Name, Title, Cwd, Model, WaitingFor, Version, Kind, Host, Remote;
 		public string Status = "unknown";
 		public long? Started, Last;
 		public long Tokens;
@@ -121,6 +121,7 @@ public sealed partial class ClaudeStatus
 			["pid"] = Pid,
 			["terminal"] = Terminal,
 			["host"] = Host,
+			["remote"] = Remote,
 			["id"] = Id,
 			["title"] = Title ?? Name,
 			["cwd"] = Cwd,
@@ -176,6 +177,7 @@ public sealed partial class ClaudeStatus
 			Kind = Text(raw, "kind"),
 			Started = Millis(raw, "startedAt"),
 			Last = Millis(raw, "updatedAt"),
+			Remote = RemoteUrl(Text(raw, "bridgeSessionId")),
 		};
 
 		Transcript? state = null;
@@ -202,6 +204,17 @@ public sealed partial class ClaudeStatus
 			session.Activity = ReadActivity(transcript, session.Cwd);
 		}
 		return session;
+	}
+
+	// The address of a session that has Remote Control on, for opening it in a browser or sharing it.
+	// Claude Code records the session's id there while Remote Control is on; the page takes it as "session_...".
+	static string? RemoteUrl(string? id)
+	{
+		if (id is null || id.Length > 128 || !id.All(c => char.IsAsciiLetterOrDigit(c) || c is '_' or '-'))
+			return null;
+		if (id.StartsWith("cse_", StringComparison.Ordinal))
+			id = "session_" + id[4..];
+		return "https://claude.ai/code/" + id;
 	}
 
 	// A PID is given out again once a process is gone, and its old file can still be there:
