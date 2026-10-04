@@ -42,6 +42,9 @@ You can also build the installer yourself: see [Build the installer](#build-the-
 
 - It installs for the current user, into `%LOCALAPPDATA%\Programs\TermHost`, and adds a
   Start menu shortcut. No administrator rights are needed.
+- It adds **Open in TermHost** to the right-click menu of folders and drives in File
+  Explorer. On Windows 11 this is under **Show more options** (or hold Shift while you
+  right-click).
 - .NET and the Windows App SDK are included, so nothing else has to be installed.
 - The installer is not signed, so Windows may show a SmartScreen warning.
 - To remove it, use **Settings > Apps > Installed apps**. Your settings are kept.
@@ -53,6 +56,7 @@ The toolbar is at the top right. Hover over an icon for its name.
 | Icon | What it does |
 |---|---|
 | Plus | Opens a new terminal: the default terminal, running the startup program. |
+| Folder with a plus | Opens a dialog to choose the terminal, the folder and the command for one new terminal. |
 | Tabs / grid switch | Switches between tabs and a grid of all terminals. |
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
@@ -61,6 +65,12 @@ The toolbar is at the top right. Hover over an icon for its name.
 **Settings** hold the default terminal, the startup program and the theme. They apply
 at once and are remembered. Leave the startup program empty for a plain shell. A fresh
 install starts with `claude` as the startup program.
+
+**Folders:** new terminals start in your home folder. When you start TermHost with
+**Open in TermHost** from a folder's right-click menu, the terminals of that window start
+in that folder instead. To start one terminal somewhere else, use the folder button: type
+the folder or pick it with **Browse…**. The dialog remembers the last folder; it does not
+change the settings.
 
 **Claude panel:** click a session to expand it. A session that runs in one of this
 window's terminals shows that terminal's name; clicking it also switches to the
@@ -99,7 +109,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.1.0   # artifacts\TermHost-1.1.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.3.0   # artifacts\TermHost-1.3.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.

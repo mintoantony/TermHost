@@ -25,6 +25,24 @@
                   Target="[INSTALLFOLDER]TermHost.exe" WorkingDirectory="INSTALLFOLDER" Icon="TermHost.exe" />
         <RegistryValue Root="HKCU" Key="Software\TermHost" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
+      <!-- "Open in TermHost" in File Explorer: on a folder, on the empty space inside a folder, and on a drive. -->
+      <Component Id="FolderMenu" Directory="INSTALLFOLDER">
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\shell\TermHost">
+          <RegistryValue Type="string" Value="Open in TermHost" KeyPath="yes" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]TermHost.exe" />
+          <RegistryValue Key="command" Type="string" Value="&quot;[INSTALLFOLDER]TermHost.exe&quot; &quot;%1&quot;" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Directory\Background\shell\TermHost">
+          <RegistryValue Type="string" Value="Open in TermHost" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]TermHost.exe" />
+          <RegistryValue Key="command" Type="string" Value="&quot;[INSTALLFOLDER]TermHost.exe&quot; &quot;%V&quot;" />
+        </RegistryKey>
+        <RegistryKey Root="HKCU" Key="Software\Classes\Drive\shell\TermHost">
+          <RegistryValue Type="string" Value="Open in TermHost" />
+          <RegistryValue Name="Icon" Type="string" Value="[INSTALLFOLDER]TermHost.exe" />
+          <RegistryValue Key="command" Type="string" Value="&quot;[INSTALLFOLDER]TermHost.exe&quot; &quot;%1&quot;" />
+        </RegistryKey>
+      </Component>
     </Feature>
   </Package>
 </Wix>

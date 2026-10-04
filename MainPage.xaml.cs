@@ -45,7 +45,29 @@ public partial class MainPage : ContentPage
 	Shell DefaultShell =>
 		_shells.FirstOrDefault(s => s.Name == Preferences.Default.Get("shell", "")) ?? _shells[0];
 
-	static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+	// Where new terminals start: the folder TermHost was opened in from File Explorer, otherwise the home folder.
+	static readonly string StartFolder = LaunchFolder() ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+	static readonly bool Launched = LaunchFolder() is not null;
+
+	// The folder given on the command line by "Open in TermHost". Only ever an existing directory.
+	static string? LaunchFolder()
+	{
+		var args = Environment.GetCommandLineArgs();
+		if (args.Length < 2)
+			return null;
+		// A drive arrives as "D:\" in quotes, which command-line parsing turns into D:" .
+		var folder = args[1].Trim('"');
+		if (folder.EndsWith(':'))
+			folder += Path.DirectorySeparatorChar;
+		try
+		{
+			return Directory.Exists(folder) ? Path.GetFullPath(folder) : null;
+		}
+		catch (Exception)
+		{
+			return null;
+		}
+	}
 
 	void SendInit()
 	{
@@ -54,7 +76,7 @@ public partial class MainPage : ContentPage
 			["t"] = "init",
 			["shells"] = new JsonArray(_shells.Select(s => (JsonNode)s.Name).ToArray()),
 			// Where the "new terminal with options" dialog starts: the folder it used last.
-			["folder"] = Preferences.Default.Get("folder", Home),
+			["folder"] = Launched ? StartFolder : Preferences.Default.Get("folder", StartFolder),
 			["settings"] = new JsonObject
 			{
 				["shell"] = DefaultShell.Name,
@@ -103,7 +125,7 @@ public partial class MainPage : ContentPage
 
 	// The web view sizes the terminal first, then asks us to start the shell at that size.
 	void NewTerminal() =>
-		NewTerminal(DefaultShell, Preferences.Default.Get("program", DefaultProgram).Trim(), Home);
+		NewTerminal(DefaultShell, Preferences.Default.Get("program", DefaultProgram).Trim(), StartFolder);
 
 	void NewTerminal(Shell shell, string program, string folder)
 	{
@@ -201,7 +223,7 @@ public partial class MainPage : ContentPage
 		// Quotes come along when a path is pasted from "Copy as path".
 		folder = folder.Trim('"');
 		if (folder.Length == 0)
-			folder = Home;
+			folder = StartFolder;
 		if (!Directory.Exists(folder))
 		{
 			Web.SendRawMessage("{\"t\":\"launch-error\",\"error\":\"That folder does not exist.\"}");
