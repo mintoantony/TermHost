@@ -331,7 +331,7 @@
     pane.innerHTML = `<div class="head">${icon('terminal')}<span class="title"></span>${closeButton}</div><div class="term"></div>`;
     pane.querySelector('.title').textContent = title;
     pane.querySelector('.close').onclick = e => { e.stopPropagation(); closeTerminal(id); };
-    pane.addEventListener('mousedown', () => activate(id));
+    pane.addEventListener('mousedown', () => pick(id));
     panesEl.appendChild(pane);
 
     const tab = document.createElement('div');
@@ -339,7 +339,7 @@
     tab.innerHTML = `${icon('terminal')}<span></span>${closeButton}`;
     tab.querySelector('span').textContent = title;
     tab.querySelector('.close').onclick = e => { e.stopPropagation(); closeTerminal(id); };
-    tab.onclick = () => activate(id);
+    tab.onclick = () => pick(id);
     tabsEl.appendChild(tab);
 
     const term = new Terminal({
@@ -395,6 +395,17 @@
     }
     fitAll();
     focusActive();
+  }
+
+  // A click on a terminal or its tab: besides activating it, the Claude panel opens the session that runs in it.
+  function pick(id) {
+    if (activeId === id) return;
+    activate(id);
+    const session = claude?.sessions.find(s => s.terminal === id);
+    if (!session || session.key === openSession) return;
+    openSession = session.key;
+    renderClaude();
+    $('claude-body').querySelector('.card.open')?.scrollIntoView({ block: 'nearest' });
   }
 
   function focusActive() {
