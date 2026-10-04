@@ -16,8 +16,8 @@ public partial class MainPage : ContentPage
 	const string DefaultProgram = "claude";
 
 	readonly List<Shell> _shells = FindShells();
-	// Terminals announced to the web view but not yet started: id -> command line.
-	readonly Dictionary<int, string> _pending = new();
+	// Terminals announced to the web view but not yet started: id -> command line and starting folder.
+	readonly Dictionary<int, (string Command, string Folder)> _pending = new();
 	// Concurrent: the Claude status reader looks up the shells from its own thread.
 	readonly ConcurrentDictionary<int, ConPtySession> _sessions = new();
 	int _nextId = 1;
@@ -45,12 +45,16 @@ public partial class MainPage : ContentPage
 	Shell DefaultShell =>
 		_shells.FirstOrDefault(s => s.Name == Preferences.Default.Get("shell", "")) ?? _shells[0];
 
+	static string Home => Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+
 	void SendInit()
 	{
 		var init = new JsonObject
 		{
 			["t"] = "init",
 			["shells"] = new JsonArray(_shells.Select(s => (JsonNode)s.Name).ToArray()),
+			// Where the "new terminal with options" dialog starts: the folder it used last.
+			["folder"] = Preferences.Default.Get("folder", Home),
 			["settings"] = new JsonObject
 			{
 				["shell"] = DefaultShell.Name,
@@ -98,12 +102,13 @@ public partial class MainPage : ContentPage
 	}
 
 	// The web view sizes the terminal first, then asks us to start the shell at that size.
-	void NewTerminal()
+	void NewTerminal() =>
+		NewTerminal(DefaultShell, Preferences.Default.Get("program", DefaultProgram).Trim(), Home);
+
+	void NewTerminal(Shell shell, string program, string folder)
 	{
-		var shell = DefaultShell;
-		var program = Preferences.Default.Get("program", DefaultProgram).Trim();
 		int id = _nextId++;
-		_pending[id] = CommandLine(shell, program);
+		_pending[id] = (CommandLine(shell, program), folder);
 		var name = program.Length == 0 ? shell.Name : program.Length > 24 ? program[..24] + "…" : program;
 		var title = JsonEncodedText.Encode($"{name} {id}");
 		Web.SendRawMessage($"{{\"t\":\"new\",\"id\":{id},\"title\":\"{title}\"}}");
@@ -142,6 +147,12 @@ public partial class MainPage : ContentPage
 				break;
 			case "new":
 				NewTerminal();
+				break;
+			case "launch":
+				Launch(Text("shell"), Text("program").Trim(), Text("folder").Trim());
+				break;
+			case "browse":
+				Browse();
 				break;
 			case "git":
 				_gitOpen = msg.GetProperty("open").GetBoolean();
@@ -184,6 +195,47 @@ public partial class MainPage : ContentPage
 		}
 	}
 
+	// A terminal from the "new terminal with options" dialog: the chosen shell, program and folder, for this one only.
+	void Launch(string shellName, string program, string folder)
+	{
+		// Quotes come along when a path is pasted from "Copy as path".
+		folder = folder.Trim('"');
+		if (folder.Length == 0)
+			folder = Home;
+		if (!Directory.Exists(folder))
+		{
+			Web.SendRawMessage("{\"t\":\"launch-error\",\"error\":\"That folder does not exist.\"}");
+			return;
+		}
+		folder = Path.GetFullPath(folder);
+		Preferences.Default.Set("folder", folder);
+		Web.SendRawMessage(new JsonObject { ["t"] = "launched", ["folder"] = folder }.ToJsonString());
+		NewTerminal(_shells.FirstOrDefault(s => s.Name == shellName) ?? DefaultShell, program, folder);
+	}
+
+	// The native folder picker, for the dialog's Browse button.
+	async void Browse()
+	{
+#if WINDOWS
+		if (Window?.Handler?.PlatformView is not Microsoft.UI.Xaml.Window native)
+			return;
+		var picker = new Windows.Storage.Pickers.FolderPicker();
+		picker.FileTypeFilter.Add("*");
+		WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(native));
+		try
+		{
+			if (await picker.PickSingleFolderAsync() is { } picked)
+				Web.SendRawMessage(new JsonObject { ["t"] = "picked", ["folder"] = picked.Path }.ToJsonString());
+		}
+		catch (Exception)
+		{
+			// No picker (it cannot open from an elevated process): the folder can still be typed.
+		}
+#else
+		await Task.CompletedTask;
+#endif
+	}
+
 	// Keeps the native window chrome in step with the theme chosen in the web view.
 	void ApplyChrome(string background, string foreground, bool dark)
 	{
@@ -212,14 +264,14 @@ public partial class MainPage : ContentPage
 
 	void Start(int id, int cols, int rows)
 	{
-		if (!_pending.Remove(id, out var command))
+		if (!_pending.Remove(id, out var pending))
 			return;
+		var (command, folder) = pending;
 
 		ConPtySession session;
 		try
 		{
-			var home = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-			session = new ConPtySession(command, cols, rows, home);
+			session = new ConPtySession(command, cols, rows, folder);
 		}
 		catch (Exception ex)
 		{

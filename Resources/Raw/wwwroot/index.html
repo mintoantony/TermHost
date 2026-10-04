@@ -36,6 +36,7 @@
   .btn { display: grid; place-items: center; width: 28px; height: 28px; border-radius: 7px; color: var(--muted); }
   .btn:hover { background: var(--surface); color: var(--fg); }
   #new { color: var(--accent); }
+  #new-more { color: var(--accent); }
   #layout { display: flex; gap: 2px; padding: 2px; border-radius: 8px; background: var(--bg); box-shadow: inset 0 0 0 1px var(--border); }
   #layout span { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; color: var(--muted); transition: background .15s, color .15s; }
   body.tabs #layout span:first-child, body.grid #layout span:last-child { background: var(--accent); color: var(--accent-fg); }
@@ -151,7 +152,14 @@
   select, input { display: block; width: 100%; margin-top: 5px; padding: 7px 9px; border: 1px solid var(--border); border-radius: 7px; background: var(--bg); color: var(--fg); font: inherit; outline: none; }
   input { font-family: "Cascadia Mono", Consolas, monospace; }
   select:focus, input:focus { border-color: var(--accent); }
+  .pick { display: flex; gap: 6px; margin-top: 5px; }
+  .pick input { flex: 1; min-width: 0; margin-top: 0; }
+  .text-btn { flex: none; height: 32px; padding: 0 14px; border-radius: 7px; border: 1px solid var(--border); background: var(--surface); color: var(--fg); }
+  .text-btn:hover { border-color: var(--accent); }
+  .text-btn.primary { border-color: var(--accent); background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   .hint { margin: 5px 0 0; font-size: 12px; color: var(--muted); opacity: .8; }
+  #launch-error { color: var(--red); opacity: 1; }
   #themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
   .swatch { display: flex; flex-direction: column; gap: 7px; padding: 9px; border-radius: 9px; border: 2px solid transparent; text-align: left; font-size: 11px; line-height: 1.2; }
   .swatch.selected { border-color: var(--accent); }
@@ -163,6 +171,7 @@
 
 <svg style="display:none">
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
+  <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
   <symbol id="i-tabs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M10 3v6"/></symbol>
@@ -182,6 +191,7 @@
   <div id="brand"><svg class="icon"><use href="#i-terminal"/></svg><span id="count"></span></div>
   <div id="actions">
     <button id="new" class="btn" data-tip="New terminal" aria-label="New terminal"><svg class="icon"><use href="#i-plus"/></svg></button>
+    <button id="new-more" class="btn" data-tip="New terminal in a folder…" aria-label="New terminal with options"><svg class="icon"><use href="#i-folder-plus"/></svg></button>
     <button id="layout" role="switch" aria-label="Tile terminals evenly">
       <span><svg class="icon"><use href="#i-tabs"/></svg></span>
       <span><svg class="icon"><use href="#i-grid"/></svg></span>
@@ -232,6 +242,29 @@
   <div id="themes"></div>
 </dialog>
 
+<dialog id="launch">
+  <form id="launch-form">
+    <div class="dlg-head">
+      <svg class="icon"><use href="#i-terminal"/></svg>
+      <h2>New terminal</h2>
+      <button id="launch-close" type="button" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <label class="field">Terminal<select id="launch-shell"></select></label>
+    <label class="field" for="launch-folder">Folder</label>
+    <div class="pick">
+      <input id="launch-folder" spellcheck="false" autocomplete="off">
+      <button id="launch-browse" type="button" class="text-btn">Browse…</button>
+    </div>
+    <p id="launch-error" class="hint" hidden></p>
+    <label class="field">Command<input id="launch-program" spellcheck="false" autocomplete="off" placeholder="claude, copilot, .\scripts\dev.ps1 …"></label>
+    <p class="hint">Runs in this terminal only. Leave empty for a plain shell.</p>
+    <div class="dlg-foot">
+      <button id="launch-cancel" type="button" class="text-btn">Cancel</button>
+      <button type="submit" class="text-btn primary">Start</button>
+    </div>
+  </form>
+</dialog>
+
 <script src="_framework/hybridwebview.js"></script>
 <script src="xterm.js"></script>
 <script src="addon-fit.js"></script>
@@ -259,9 +292,10 @@
     'brightBlack', 'brightRed', 'brightGreen', 'brightYellow', 'brightBlue', 'brightMagenta', 'brightCyan', 'brightWhite'];
 
   const $ = id => document.getElementById(id);
-  const tabsEl = $('tabs'), panesEl = $('panes'), dialog = $('dialog');
+  const tabsEl = $('tabs'), panesEl = $('panes'), dialog = $('dialog'), launch = $('launch');
   const terms = new Map(); // id -> { term, fit, pane, tab }
   let activeId = null;
+  let lastFolder = ''; // where the "new terminal with options" dialog starts
   let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs' };
 
   const send = msg => window.HybridWebView.SendRawMessage(JSON.stringify(msg));
@@ -467,6 +501,8 @@
     settings = { ...settings, ...msg.settings };
     $('shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
     $('shell').value = settings.shell;
+    $('launch-shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
+    lastFolder = msg.folder;
     $('program').value = settings.program;
     $('themes').replaceChildren(...Object.entries(THEMES).map(([name, theme]) => {
       const swatch = document.createElement('button');
@@ -705,6 +741,9 @@
         break;
       case 'new': addTerminal(msg.id, msg.title); break;
       case 'exit': removeTerminal(msg.id); break;
+      case 'picked': $('launch-folder').value = msg.folder; launchError(''); break;
+      case 'launched': lastFolder = msg.folder; launch.close(); break;
+      case 'launch-error': launchError(msg.error); $('launch-folder').focus(); break;
       case 'init': init(msg); break;
       case 'status':
         claude = msg;
@@ -716,6 +755,28 @@
   });
 
   $('new').onclick = $('empty-new').onclick = () => send({ t: 'new' });
+  // New terminal with options: a shell, folder and command for one terminal, leaving the defaults alone.
+  function launchError(text) {
+    $('launch-error').textContent = text;
+    $('launch-error').hidden = !text;
+  }
+  $('new-more').onclick = () => {
+    $('launch-shell').value = settings.shell;
+    $('launch-folder').value = lastFolder;
+    $('launch-program').value = settings.program;
+    launchError('');
+    launch.showModal();
+    $('launch-program').select();
+  };
+  $('launch-form').onsubmit = e => {
+    e.preventDefault();
+    send({ t: 'launch', shell: $('launch-shell').value, folder: $('launch-folder').value, program: $('launch-program').value });
+  };
+  $('launch-browse').onclick = () => send({ t: 'browse' });
+  $('launch-folder').oninput = () => launchError('');
+  $('launch-close').onclick = $('launch-cancel').onclick = () => launch.close();
+  launch.addEventListener('click', e => { if (e.target === launch) launch.close(); });
+  launch.addEventListener('close', focusActive);
   $('layout').onclick = () => { setLayout(settings.layout === 'grid' ? 'tabs' : 'grid'); saveSettings(); focusActive(); };
   $('settings').onclick = () => dialog.showModal();
   $('dialog-close').onclick = () => dialog.close();
