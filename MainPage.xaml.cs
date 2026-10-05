@@ -27,6 +27,8 @@ public partial class MainPage : ContentPage
 	bool _watching;
 	// Whether the Git panel is open: the reader asks git about the repositories only then.
 	volatile bool _gitOpen;
+	// The same for the GitHub panel and the GitHub CLI.
+	volatile bool _gitHubOpen;
 	readonly SemaphoreSlim _refresh = new(0);
 	// What the latest release on GitHub is, once known: sent to the web view for its About dialog.
 	const string Repository = "https://github.com/mintoantony/TermHost";
@@ -95,6 +97,7 @@ public partial class MainPage : ContentPage
 				["theme"] = Preferences.Default.Get("theme", "Catppuccin Mocha"),
 				["layout"] = Preferences.Default.Get("layout", "tabs"),
 				["glass"] = Preferences.Default.Get("glass", "0"),
+				["mine"] = Preferences.Default.Get("mine", "0"),
 			},
 		};
 		Web.SendRawMessage(init.ToJsonString());
@@ -114,7 +117,7 @@ public partial class MainPage : ContentPage
 			var claude = new ClaudeStatus();
 			while (!stop.IsCancellationRequested)
 			{
-				var status = claude.Snapshot(_sessions.ToDictionary(shell => shell.Value.ProcessId, shell => shell.Key), _gitOpen);
+				var status = claude.Snapshot(_sessions.ToDictionary(shell => shell.Value.ProcessId, shell => shell.Key), _gitOpen, _gitHubOpen);
 				Dispatcher.Dispatch(() =>
 				{
 					if (status == _status || stop.IsCancellationRequested)
@@ -175,7 +178,7 @@ public partial class MainPage : ContentPage
 		switch (Text("t"))
 		{
 			case "ready":
-				_gitOpen = false; // a fresh page starts with its panels closed
+				_gitOpen = _gitHubOpen = false; // a fresh page starts with its panels closed
 				_closeAsked = false;
 				ConfirmClosing();
 				CheckForUpdate();
@@ -197,8 +200,13 @@ public partial class MainPage : ContentPage
 				if (_gitOpen)
 					_refresh.Release();
 				break;
+			case "github":
+				_gitHubOpen = msg.GetProperty("open").GetBoolean();
+				if (_gitHubOpen)
+					_refresh.Release();
+				break;
 			case "open":
-				// A remote's web page. Only ever a web address: nothing else is handed to the system.
+				// A remote's web page, a pull request or an issue. Only ever a web address: nothing else is handed to the system.
 				if (Uri.TryCreate(Text("url"), UriKind.Absolute, out var page) && page.Scheme is "http" or "https")
 					_ = Launcher.Default.OpenAsync(page);
 				break;
@@ -219,7 +227,7 @@ public partial class MainPage : ContentPage
 				Application.Current?.CloseWindow(Window);
 				break;
 			case "settings":
-				foreach (var key in new[] { "shell", "program", "theme", "layout", "glass" })
+				foreach (var key in new[] { "shell", "program", "theme", "layout", "glass", "mine" })
 					Preferences.Default.Set(key, Text(key));
 				break;
 			case "chrome":

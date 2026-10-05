@@ -82,7 +82,7 @@
   #status { position: relative; }
   #status .dot { position: absolute; top: 3px; right: 3px; display: none; box-shadow: 0 0 0 2px var(--chrome); }
   #status .dot.running, #status .dot.waiting { display: block; }
-  body.claude-open #status, body.git-open #git { background: var(--surface); color: var(--accent); }
+  body.claude-open #status, body.git-open #git, body.github-open #github { background: var(--surface); color: var(--accent); }
   .running { --c: var(--green); } .waiting { --c: var(--yellow); } .failed, .error { --c: var(--red); }
   .done, .tool { --c: var(--blue); } .idle, .unknown, .stopped { --c: var(--muted); } .prompt { --c: var(--accent); } .system { --c: var(--yellow); }
   .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
@@ -90,7 +90,7 @@
   @keyframes pulse { 50% { opacity: .35; } }
 
   .panel { display: none; flex: none; flex-direction: column; width: 400px; min-height: 0; margin: 0 6px 6px 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
-  body.claude-open #claude-panel, body.git-open #git-panel { display: flex; }
+  body.claude-open #claude-panel, body.git-open #git-panel, body.github-open #github-panel { display: flex; }
   .c-head { flex: none; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 12px; background: color-mix(in srgb, var(--surface) 45%, var(--bg)); }
   .c-head > .icon { color: var(--accent); }
   .c-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
@@ -126,6 +126,23 @@
   .chip, .code { flex: none; font: 11px "Cascadia Mono", Consolas, monospace; color: var(--c, var(--muted)); }
   .code { width: 18px; }
   .staged, .clean { --c: var(--green); } .changed { --c: var(--yellow); } .untracked { --c: var(--muted); } .conflict { --c: var(--red); }
+  /* GitHub panel: the filter, then each repository's pull requests and issues */
+  #github-filter { flex: none; display: flex; gap: 2px; margin: 10px 10px 0; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 45%, var(--bg)); box-shadow: inset 0 0 0 1px var(--border); }
+  #github-filter button { flex: 1; height: 24px; border-radius: 6px; font-size: 12px; color: var(--muted); transition: background .15s, color .15s; }
+  #github-filter button[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  .hub { padding: 0 10px 10px; }
+  .hub .sub .num { font-weight: 400; letter-spacing: 0; }
+  .fold { cursor: pointer; user-select: none; }
+  .fold:hover { color: var(--fg); }
+  .fold .card-line > .icon:first-child, .sub.fold > .icon:first-child { color: var(--muted); }
+  .fold.folded .icon:first-child { transform: rotate(-90deg); }
+  .repo-top.folded { padding-bottom: 9px; }
+  .repo-top .card-line .num { flex: none; font: 11px "Cascadia Mono", Consolas, monospace; color: var(--muted); }
+  .row.item { margin: 0 -6px; padding: 4px 6px; border-radius: 6px; cursor: pointer; }
+  .item:hover { background: var(--surface); }
+  .item:hover .text { text-decoration: underline; }
+  .item .text { color: var(--fg); }
+  .item.pr { --c: var(--green); } .item.issue { --c: var(--blue); } .item.draft { --c: var(--muted); }
   .card.open { border-color: color-mix(in srgb, var(--accent) 60%, var(--border)); }
   .card-top { padding: 9px 10px; cursor: pointer; user-select: none; }
   .card-line { display: flex; align-items: center; gap: 8px; }
@@ -200,6 +217,10 @@
   <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
   <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
   <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
+  <symbol id="i-github" viewBox="0 0 24 24"><path d="M15 22v-4a4.8 4.8 0 0 0-1-3.5c3 0 6-2 6-5.5.08-1.25-.27-2.48-1-3.5.28-1.15.28-2.35 0-3.5 0 0-1 0-3 1.5-2.64-.5-5.36-.5-8 0C6 2 5 2 5 2c-.3 1.15-.3 2.35 0 3.5A5.403 5.403 0 0 0 4 9c0 3.5 3 5.5 6 5.5-.39.49-.68 1.05-.85 1.65-.17.6-.22 1.23-.15 1.85v4"/><path d="M9 18c-4.51 2-5-2-7-2"/></symbol>
+  <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m6 9 6 6 6-6"/></symbol>
+  <symbol id="i-pr" viewBox="0 0 24 24"><circle cx="18" cy="18" r="3"/><circle cx="6" cy="6" r="3"/><path d="M13 6h3a2 2 0 0 1 2 2v7"/><path d="M6 9v12"/></symbol>
+  <symbol id="i-issue" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="1"/></symbol>
   <symbol id="i-prompt" viewBox="0 0 24 24"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></symbol>
   <symbol id="i-tool" viewBox="0 0 24 24"><path d="M14.7 6.3a1 1 0 0 0 0 1.4l1.6 1.6a1 1 0 0 0 1.4 0l3.77-3.77a6 6 0 0 1-7.94 7.94l-6.91 6.91a2.12 2.12 0 0 1-3-3l6.91-6.91a6 6 0 0 1 7.94-7.94l-3.76 3.76z"/></symbol>
   <symbol id="i-alert" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></symbol>
@@ -223,6 +244,7 @@
     </div>
     <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-claude"/></svg><span class="dot"></span></button>
     <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
+    <button id="github" class="btn" data-tip="GitHub · pull requests and issues" aria-label="GitHub pull requests and issues"><svg class="icon"><use href="#i-github"/></svg></button>
     <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
     <button id="help" class="btn" data-tip="About and help" aria-label="About and help"><svg class="icon"><use href="#i-help"/></svg></button>
   </div>
@@ -252,6 +274,19 @@
       <button id="git-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
     <div id="git-body" class="panel-body"></div>
+  </aside>
+  <aside id="github-panel" class="panel">
+    <div class="c-head">
+      <svg class="icon"><use href="#i-github"/></svg>
+      <h2>GitHub</h2>
+      <span id="github-summary"></span>
+      <button id="github-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="github-filter" role="radiogroup" aria-label="Show">
+      <button role="radio" data-mine="0" title="Every open pull request and issue">All open</button>
+      <button role="radio" data-mine="1" title="Pull requests you opened or are assigned to, and issues assigned to you">Only mine</button>
+    </div>
+    <div id="github-body" class="panel-body"></div>
   </aside>
 </div>
 
@@ -358,7 +393,7 @@
   const terms = new Map(); // id -> { term, fit, pane, tab }
   let activeId = null;
   let lastFolder = ''; // where the "new terminal with options" dialog starts
-  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs', glass: '0' };
+  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs', glass: '0', mine: '0' };
 
   const send = msg => window.HybridWebView.SendRawMessage(JSON.stringify(msg));
   const saveSettings = () => send({ t: 'settings', ...settings });
@@ -594,6 +629,7 @@
     }));
     applyTheme(settings.theme);
     setLayout(settings.layout);
+    renderGitHub();
   }
 
   // ---- Claude status panel ----
@@ -773,23 +809,87 @@
       : '<div class="c-empty">No repositories. This lists the repositories that have a Claude session running in them.</div>');
   }
 
-  // ---- The side panel: Claude or Git, one at a time ----
+  // ---- GitHub panel: the open pull requests and issues of the same repositories ----
 
-  let panel = null; // 'claude', 'git' or null
+  let hub = null;   // the last answer; it only arrives while the panel is open
+
+  const folded = new Set(); // the repositories and lists that are collapsed: a root, or a root and "|prs" or "|issues"
+  const shown = listing => (listing?.items ?? []).filter(item => settings.mine !== '1' || item.mine);
+
+  // One list of a repository, under a heading that collapses it: null until GitHub has answered.
+  function hubList(root, listing, key, kind, label) {
+    const mine = settings.mine === '1';
+    const items = shown(listing);
+    const closed = folded.has(root + '|' + key);
+    const head = `<div class="sub fold ${closed ? 'folded' : ''}" data-fold="${esc(root + '|' + key)}" title="${closed ? 'Show' : 'Hide'}">
+        ${icon('chevron')}${icon(kind)}${label}<span class="num">${listing && !listing.error ? items.length : ''}</span></div>`;
+    if (closed) return head;
+    return head + (!listing ? '<div class="row idle"><span class="text">Reading…</span></div>'
+      : listing.error ? `<div class="row idle" title="${esc(listing.error)}"><span class="text">${esc(listing.error)}</span></div>`
+      : !items.length ? `<div class="row idle"><span class="text">${mine ? (kind === 'pr' ? 'None of yours' : 'None assigned to you') : 'None open'}</span></div>`
+      : items.map(item => `<div class="row item ${kind} ${item.draft ? 'draft' : ''}" data-url="${esc(item.url)}" title="${esc(item.title)}&#10;${esc(item.url)}">
+          ${icon(kind)}<span class="num">#${item.number}</span><span class="text">${esc(item.title)}</span>
+          ${item.draft ? '<span class="pill draft">Draft</span>' : ''}<span class="num">${esc(item.author)}${item.updated ? ' · ' + ago(item.updated) : ''}</span></div>`).join(''));
+  }
+
+  // A repository: its heading collapses it and keeps the counts in view.
+  function hubCard(repo) {
+    const closed = folded.has(repo.root);
+    const counts = `${plural(shown(repo.prs).length, 'PR')} · ${plural(shown(repo.issues).length, 'issue')}`;
+    return `<div class="card"><div class="repo-top fold ${closed ? 'folded' : ''}" data-fold="${esc(repo.root)}" title="${esc(repo.root)}">
+        <div class="card-line">${icon('chevron')}<span class="card-title">${esc(repo.repo)}</span><span class="num">${counts}</span></div></div>
+        ${closed ? '' : `<div class="hub">${hubList(repo.root, repo.prs, 'prs', 'pr', 'Pull requests')}${hubList(repo.root, repo.issues, 'issues', 'issue', 'Issues')}</div>`}</div>`;
+  }
+
+  function renderGitHub() {
+    for (const button of $('github-filter').children) button.setAttribute('aria-checked', button.dataset.mine === settings.mine);
+    if (panel !== 'github') return;
+    const body = $('github-body');
+    if (!hub) { body.innerHTML = '<div class="c-empty">Reading GitHub…</div>'; return; }
+    const count = key => hub.reduce((n, repo) => n + shown(repo[key]).length, 0);
+    $('github-summary').textContent = hub.length ? `${plural(count('prs'), 'pull request')} · ${plural(count('issues'), 'issue')}` : '';
+    rebuild(body, hub.length ? hub.map(hubCard).join('')
+      : '<div class="c-empty">No repositories. This lists the repositories that have a Claude session running in them.</div>');
+  }
+
+  // ---- The side panel: Claude, Git or GitHub, one at a time ----
+
+  let panel = null; // 'claude', 'git', 'github' or null
 
   function showPanel(name) {
     panel = panel === name ? null : name;
     document.body.classList.toggle('claude-open', panel === 'claude');
     document.body.classList.toggle('git-open', panel === 'git');
+    document.body.classList.toggle('github-open', panel === 'github');
     send({ t: 'git', open: panel === 'git' }); // git is only asked while its panel is open
+    send({ t: 'github', open: panel === 'github' }); // and so is GitHub
     renderClaude();
     renderGit();
+    renderGitHub();
     focusActive();
   }
 
   $('status').onclick = () => showPanel('claude');
   $('git').onclick = () => showPanel('git');
-  $('claude-close').onclick = $('git-close').onclick = () => showPanel(panel);
+  $('github').onclick = () => showPanel('github');
+  $('claude-close').onclick = $('git-close').onclick = $('github-close').onclick = () => showPanel(panel);
+  $('github-filter').onclick = e => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    settings.mine = button.dataset.mine;
+    saveSettings();
+    renderGitHub();
+  };
+  // A pull request or an issue: a click opens it in the browser.
+  $('github-body').onclick = e => {
+    const item = e.target.closest('[data-url]');
+    if (item) return send({ t: 'open', url: item.dataset.url });
+    // A repository's heading or a list's: a click collapses it or opens it again.
+    const fold = e.target.closest('[data-fold]');
+    if (!fold) return;
+    if (!folded.delete(fold.dataset.fold)) folded.add(fold.dataset.fold);
+    renderGitHub();
+  };
   $('git-body').onclick = e => {
     const link = e.target.closest('.link');
     if (link) return send({ t: 'open', url: link.dataset.url });
@@ -817,7 +917,7 @@
       send({ t: 'focus', pid: session.pid });
     }
   };
-  setInterval(() => { renderClaude(); renderGit(); }, 15000); // keeps the "ago" times moving while nothing changes
+  setInterval(() => { renderClaude(); renderGit(); renderGitHub(); }, 15000); // keeps the "ago" times moving while nothing changes
 
   window.addEventListener('HybridWebViewMessageReceived', e => {
     const msg = JSON.parse(e.detail.message);
@@ -836,8 +936,10 @@
       case 'status':
         claude = msg;
         if (msg.git) repos = msg.git;
+        if (msg.github) hub = msg.github;
         renderClaude();
         renderGit();
+        renderGitHub();
         break;
     }
   });

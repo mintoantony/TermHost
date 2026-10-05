@@ -39,6 +39,7 @@ public sealed partial class ClaudeStatus
 	readonly Dictionary<string, (DateTime Modified, AgentMeta Meta)> _metas = new();
 	readonly Dictionary<string, (DateTime Expires, GitInfo? Info)> _git = new(StringComparer.OrdinalIgnoreCase);
 	readonly GitDetails _details = new();
+	readonly GitHubItems _hub = new();
 
 	public ClaudeStatus()
 	{
@@ -52,7 +53,8 @@ public sealed partial class ClaudeStatus
 	/// <summary>Everything the status panel shows, as the JSON message sent to the web view.</summary>
 	/// <param name="shells">Process id of each terminal's shell in this window -> the terminal's id.</param>
 	/// <param name="withGit">Also report the repositories of the sessions, for the Git panel.</param>
-	public string Snapshot(IReadOnlyDictionary<int, int> shells, bool withGit)
+	/// <param name="withGitHub">Also report their open pull requests and issues, for the GitHub panel.</param>
+	public string Snapshot(IReadOnlyDictionary<int, int> shells, bool withGit, bool withGitHub)
 	{
 		var now = DateTime.UtcNow;
 		var sessions = new List<Session>();
@@ -88,6 +90,8 @@ public sealed partial class ClaudeStatus
 			["usage"] = UsageJson(),
 			// Asking git about every worktree is the slow part: only while the Git panel is open.
 			["git"] = withGit ? GitJson(sessions) : null,
+			// GitHub is asked only while its panel is open.
+			["github"] = withGitHub ? GitHubJson(sessions) : null,
 		}.ToJsonString();
 	}
 
@@ -1016,6 +1020,15 @@ public sealed partial class ClaudeStatus
 		foreach (var repo in sessions.Where(s => s.Git?.RepoRoot is not null).GroupBy(s => s.Git!.RepoRoot!, StringComparer.OrdinalIgnoreCase).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
 			repos.Add(_details.Read(repo.Key, repo.First().Git!.RepoName,
 				repo.Select(s => (s.Git!.Top, s.Pid.ToString(CultureInfo.InvariantCulture))).ToList()));
+		return repos;
+	}
+
+	// The same repositories, each with its open pull requests and issues.
+	JsonArray GitHubJson(List<Session> sessions)
+	{
+		var repos = new JsonArray();
+		foreach (var repo in sessions.Where(s => s.Git?.RepoRoot is not null).GroupBy(s => s.Git!.RepoRoot!, StringComparer.OrdinalIgnoreCase).OrderBy(g => g.Key, StringComparer.OrdinalIgnoreCase))
+			repos.Add(_hub.Read(repo.Key, repo.First().Git!.RepoName));
 		return repos;
 	}
 

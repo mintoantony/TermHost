@@ -26,6 +26,8 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
   and when each resets.
 - **Git panel:** for each repository that has a Claude session: its remotes, and for
   every worktree the branch, distance from its upstream, changed files and last commit.
+- **GitHub panel:** for the same repositories: the open pull requests and open issues,
+  each a link to its page, with a filter for your own.
 
 ## Install
 
@@ -35,7 +37,8 @@ Requirements:
 - The WebView2 runtime. Windows 11 includes it; for Windows 10 see
   <https://developer.microsoft.com/microsoft-edge/webview2/>.
 - Optional: [Claude Code](https://claude.com/claude-code) for the Claude panel, and
-  `git` on the path for the Git panel.
+  `git` on the path for the Git panel, and the [GitHub CLI](https://cli.github.com/)
+  (`gh`), signed in with `gh auth login`, for the GitHub panel.
 
 Download the `.msi` file from the
 [latest release](https://github.com/mintoantony/TermHost/releases/latest) and run it.
@@ -64,6 +67,7 @@ The toolbar is at the top right. Hover over an icon for its name.
 | Tabs / tiles / row | Chooses the layout: tabs, a grid of all terminals, or all terminals side by side in a single row. In the grid and the row, drag the gaps to resize. |
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
+| GitHub mark | Opens the GitHub panel. |
 | Gear | Opens the settings. |
 | Question mark | Shows the version, with links to this README and the GitHub repository. A green dot on the icon means a newer version is available; the dialog then has a button that downloads its installer. |
 
@@ -91,8 +95,15 @@ Control on shows a **Remote Control** link that opens it in the browser.
 files. Click a remote to open its web page. Counts on a worktree row: `+` staged,
 `~` modified, `?` untracked, `!` in conflict, `↑` ahead of and `↓` behind the upstream.
 
-The Claude and Git panels share one place at the right of the window, so opening one
-closes the other.
+**GitHub panel:** click a pull request or an issue to open it in the browser. **All
+open** lists every open one; **Only mine** keeps the pull requests you opened or are
+assigned to and the issues assigned to you, for the account `gh` is signed in with. The
+choice is remembered. A draft pull request is marked **Draft**. Click a repository's name to collapse it, and **Pull requests** or **Issues**
+to collapse that list; the counts stay in view. The lists are read again every minute
+while the panel is open.
+
+The Claude, Git and GitHub panels share one place at the right of the window, so opening
+one closes the others.
 
 ## Limits
 
@@ -104,7 +115,10 @@ closes the other.
   saves (`%TEMP%\claude\statusline-usage-cache.json`). Without that status line the panel
   says the limits are not available. The figures are as fresh as the last time a Claude
   session drew its status line.
-- The Git panel only lists repositories that have a Claude session running in them.
+- The Git and GitHub panels only list repositories that have a Claude session running in
+  them.
+- The GitHub panel shows the newest 50 open pull requests and the newest 50 open issues
+  of a repository. Without `gh`, or when it is not signed in, the panel says so.
 - With WSL, the startup program is run through `bash`.
 - The layout of Claude Code's files is not documented and may change between versions.
 
@@ -134,6 +148,7 @@ MSI. A newer version replaces an installed older one.
 | `Resources/Raw/wwwroot/index.html` | The whole user interface: toolbar, tabs, tiles, panels, settings and themes. |
 | `ClaudeStatus.cs` | Reads the Claude Code sessions, their sub-agents and activity. Ported from the Claude Mission Control dashboard. |
 | `GitDetails.cs` | Reads remotes, worktrees and status with `git`. |
+| `GitHubItems.cs` | Reads open pull requests and issues with `gh`. |
 | `installer/` | The WiX source and the script that builds the MSI. |
 
 xterm.js and its fit add-on are included under `Resources/Raw/wwwroot` (MIT licence).
