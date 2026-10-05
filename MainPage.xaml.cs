@@ -211,7 +211,7 @@ public partial class MainPage : ContentPage
 					_ = Launcher.Default.OpenAsync(page);
 				break;
 			case "folder":
-				// A session's directory, shown in File Explorer. Only ever an existing directory.
+				// A session's directory or a worktree's, shown in File Explorer. Only ever an existing directory.
 				if (Directory.Exists(Text("path")))
 					Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { Path.GetFullPath(Text("path")) } })?.Dispose();
 				break;

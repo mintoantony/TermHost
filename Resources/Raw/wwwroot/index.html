@@ -783,7 +783,9 @@
       ['Last commit', tree.commit ? `${tree.commit.hash} ${tree.commit.subject} · ${ago(tree.commit.at)}` : null],
       ['Changes', changes.length ? changes.map(c => `${c[2]} ${c[3]}`).join(' · ') : 'working tree clean'],
       ['Claude', names.join(', ')]];
-    html += `<div class="tree-body"><div class="kv">${facts.filter(f => f[1]).map(f => `<b>${f[0]}</b><span>${esc(f[1])}</span>`).join('')}</div>`;
+    // The path is a link: a click opens it in File Explorer.
+    html += `<div class="tree-body"><div class="kv">${facts.filter(f => f[1]).map(f => `<b>${f[0]}</b>` +
+      (f[0] === 'Path' ? `<span class="link" data-folder="${esc(f[1])}" title="Open in File Explorer">${esc(f[1])}</span>` : `<span>${esc(f[1])}</span>`)).join('')}</div>`;
     if (tree.files.length)
       html += `<div class="list" data-scroll="files" style="margin-top:8px">${tree.files.map(file =>
         // XY: staged change, then unstaged; "." is none.
@@ -891,6 +893,8 @@
     renderGitHub();
   };
   $('git-body').onclick = e => {
+    const folder = e.target.closest('[data-folder]');
+    if (folder) return send({ t: 'folder', path: folder.dataset.folder });
     const link = e.target.closest('.link');
     if (link) return send({ t: 'open', url: link.dataset.url });
     const top = e.target.closest('.tree-top');

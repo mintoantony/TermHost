@@ -92,8 +92,9 @@ window). It switches to the window, not to a tab inside it. A session with Remot
 Control on shows a **Remote Control** link that opens it in the browser.
 
 **Git panel:** click a worktree to see its path, upstream, last commit and changed
-files. Click a remote to open its web page. Counts on a worktree row: `+` staged,
-`~` modified, `?` untracked, `!` in conflict, `↑` ahead of and `↓` behind the upstream.
+files. Click the path to open it in File Explorer. Click a remote to open its web page.
+Counts on a worktree row: `+` staged, `~` modified, `?` untracked, `!` in conflict,
+`↑` ahead of and `↓` behind the upstream.
 
 **GitHub panel:** click a pull request or an issue to open it in the browser. **All
 open** lists every open one; **Only mine** keeps the pull requests you opened or are
