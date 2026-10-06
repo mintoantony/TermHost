@@ -786,11 +786,15 @@
     // The path is a link: a click opens it in File Explorer.
     html += `<div class="tree-body"><div class="kv">${facts.filter(f => f[1]).map(f => `<b>${f[0]}</b>` +
       (f[0] === 'Path' ? `<span class="link" data-folder="${esc(f[1])}" title="Open in File Explorer">${esc(f[1])}</span>` : `<span>${esc(f[1])}</span>`)).join('')}</div>`;
+    // A file is a link: a click opens its diff in git's diff tool.
+    const fileRow = (file, state, kind) => `<div class="row ${state}" title="Open the diff of ${esc(file.path)}">
+          <span class="code">${esc(file.code.replaceAll('.', '·'))}</span><span class="text link" data-diff="${esc(file.path)}" data-tree="${esc(tree.path)}" data-kind="${kind}">${esc(file.path)}</span></div>`;
     if (tree.files.length)
-      html += `<div class="list" data-scroll="files" style="margin-top:8px">${tree.files.map(file =>
+      html += `<div class="sub">${icon('activity')}Uncommitted</div><div class="list" data-scroll="files">${tree.files.map(file =>
         // XY: staged change, then unstaged; "." is none.
-        `<div class="row ${file.code === '?' ? 'untracked' : file.code === 'U' ? 'conflict' : file.code[1] === '.' ? 'staged' : 'changed'}" title="${esc(file.path)}">
-          <span class="code">${esc(file.code.replaceAll('.', '·'))}</span><span class="text">${esc(file.path)}</span></div>`).join('')}</div>`;
+        fileRow(file, file.code === '?' ? 'untracked' : file.code === 'U' ? 'conflict' : file.code[1] === '.' ? 'staged' : 'changed', file.code === '?' ? 'untracked' : 'uncommitted')).join('')}</div>`;
+    if (tree.unpushed.length)
+      html += `<div class="sub">${icon('activity')}Unpushed</div><div class="list" data-scroll="unpushed">${tree.unpushed.map(file => fileRow(file, 'staged', 'unpushed')).join('')}</div>`;
     return html + '</div></div>';
   }
 
@@ -895,6 +899,8 @@
   $('git-body').onclick = e => {
     const folder = e.target.closest('[data-folder]');
     if (folder) return send({ t: 'folder', path: folder.dataset.folder });
+    const diff = e.target.closest('[data-diff]');
+    if (diff) return send({ t: 'diff', tree: diff.dataset.tree, path: diff.dataset.diff, kind: diff.dataset.kind });
     const link = e.target.closest('.link');
     if (link) return send({ t: 'open', url: link.dataset.url });
     const top = e.target.closest('.tree-top');

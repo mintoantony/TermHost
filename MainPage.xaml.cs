@@ -215,6 +215,10 @@ public partial class MainPage : ContentPage
 				if (Directory.Exists(Text("path")))
 					Process.Start(new ProcessStartInfo("explorer.exe") { ArgumentList = { Path.GetFullPath(Text("path")) } })?.Dispose();
 				break;
+			case "diff":
+				// A changed file of a worktree, shown in the diff tool git is set up with.
+				GitDetails.ShowDiff(Text("tree"), Text("path"), Text("kind"));
+				break;
 			case "focus":
 				// The window of a session that runs outside this one, brought to the front.
 				ClaudeStatus.FocusHost(Number("pid"));

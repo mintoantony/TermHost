@@ -91,8 +91,10 @@ Terminal, Visual Studio Code or another TermHost window, but not a classic conso
 window). It switches to the window, not to a tab inside it. A session with Remote
 Control on shows a **Remote Control** link that opens it in the browser.
 
-**Git panel:** click a worktree to see its path, upstream, last commit and changed
-files. Click the path to open it in File Explorer. Click a remote to open its web page.
+**Git panel:** click a worktree to see its path, upstream, last commit and its files:
+the uncommitted ones, and the ones in commits not yet pushed. Click a file to open its
+diff in the diff tool git is set up with (`git config diff.tool`). Click the path to
+open it in File Explorer. Click a remote to open its web page.
 Counts on a worktree row: `+` staged, `~` modified, `?` untracked, `!` in conflict,
 `↑` ahead of and `↓` behind the upstream.
 
@@ -135,7 +137,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.9.0   # artifacts\TermHost-1.9.0-x64.msi
+    pwsh installer\build.ps1 -Version 1.10.0   # artifacts\TermHost-1.10.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.

@@ -1,3 +1,5 @@
+using System.ComponentModel;
+using System.Diagnostics;
 using System.Globalization;
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
@@ -25,6 +27,7 @@ sealed partial class GitDetails
 		public long? CommitAt;
 		public int Ahead, Behind, Staged, Modified, Untracked, Conflicts;
 		public List<Change> Files = [];
+		public List<Change> Unpushed = []; // the files of the commits the upstream does not have
 	}
 
 	sealed record Repo(List<Remote> Remotes, List<Tree> Trees);
@@ -56,7 +59,8 @@ sealed partial class GitDetails
 				["modified"] = tree.Modified,
 				["untracked"] = tree.Untracked,
 				["conflicts"] = tree.Conflicts,
-				["files"] = new JsonArray(tree.Files.Select(file => (JsonNode)new JsonObject { ["code"] = file.Code, ["path"] = file.Path }).ToArray()),
+				["files"] = Json(tree.Files),
+				["unpushed"] = Json(tree.Unpushed),
 				["commit"] = tree.CommitHash is null ? null : new JsonObject { ["hash"] = tree.CommitHash, ["subject"] = tree.CommitSubject, ["at"] = tree.CommitAt },
 				["sessions"] = new JsonArray(sessions.Where(s => string.Equals(s.Top, tree.Path, StringComparison.OrdinalIgnoreCase))
 					.Select(s => (JsonNode)s.Key).ToArray()),
@@ -69,6 +73,43 @@ sealed partial class GitDetails
 				(JsonNode)new JsonObject { ["name"] = remote.Name, ["url"] = remote.Display, ["web"] = remote.Web }).ToArray()),
 			["trees"] = trees,
 		};
+	}
+
+	static JsonArray Json(List<Change> changes) =>
+		new(changes.Select(change => (JsonNode)new JsonObject { ["code"] = change.Code, ["path"] = change.Path }).ToArray());
+
+	/// <summary>
+	/// Opens one changed file of a worktree in the diff tool git is set up with (diff.tool).
+	/// </summary>
+	/// <param name="kind">"unpushed": the upstream against the last commit. "untracked": nothing
+	/// against the file. Anything else: the last commit against the file.</param>
+	public static void ShowDiff(string tree, string path, string kind)
+	{
+		// Only ever a file inside an existing directory.
+		if (!Directory.Exists(tree) || Path.IsPathRooted(path))
+			return;
+		var root = Path.TrimEndingDirectorySeparator(Path.GetFullPath(tree)) + Path.DirectorySeparatorChar;
+		if (!Path.GetFullPath(Path.Combine(root, path)).StartsWith(root, StringComparison.OrdinalIgnoreCase))
+			return;
+
+		string[] arguments = kind switch
+		{
+			"unpushed" => ["difftool", "--no-prompt", "@{upstream}...HEAD", "--", path],
+			"untracked" => ["difftool", "--no-prompt", "--no-index", "--", "/dev/null", path],
+			_ => ["difftool", "--no-prompt", "HEAD", "--", path],
+		};
+		try
+		{
+			var start = new ProcessStartInfo("git") { UseShellExecute = false, CreateNoWindow = true };
+			// --literal-pathspecs: the path is a file name, never a pattern.
+			foreach (var argument in (string[])["--literal-pathspecs", "-C", root, .. arguments])
+				start.ArgumentList.Add(argument);
+			Process.Start(start)?.Dispose(); // it stays open for as long as the tool does: nothing waits for it
+		}
+		catch (Exception e) when (e is Win32Exception or InvalidOperationException)
+		{
+			// git missing
+		}
 	}
 
 	static Repo Query(string root)
@@ -99,6 +140,7 @@ sealed partial class GitDetails
 		foreach (var tree in trees)
 		{
 			ReadStatus(tree);
+			ReadUnpushed(tree);
 			ReadCommit(tree);
 		}
 		return new Repo(remotes, trees);
@@ -143,6 +185,19 @@ sealed partial class GitDetails
 				var path = Field(line, line[0] == '1' ? 8 : 9).Split('\t')[0];
 				Add(tree, xy, path);
 			}
+		}
+	}
+
+	// `git diff --name-status`: "<letter><TAB><path>" for each file the commits ahead of the upstream changed.
+	static void ReadUnpushed(Tree tree)
+	{
+		if (tree.Upstream is null || tree.Ahead == 0)
+			return;
+		foreach (var line in Lines(ClaudeStatus.RunGit(tree.Path, "-c", "core.quotepath=false", "diff", "--no-renames", "--name-status", "@{upstream}...HEAD")))
+		{
+			var parts = line.Split('\t');
+			if (parts.Length == 2 && tree.Unpushed.Count < MaxFiles)
+				tree.Unpushed.Add(new Change(parts[0], parts[1]));
 		}
 	}
 
