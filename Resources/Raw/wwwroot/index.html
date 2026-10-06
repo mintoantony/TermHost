@@ -929,6 +929,17 @@
   };
   setInterval(() => { renderClaude(); renderGit(); renderGitHub(); }, 15000); // keeps the "ago" times moving while nothing changes
 
+  // A reload of the page would end every terminal. The browser's menu offers one, and so do
+  // F5 and Ctrl+R: neither is let through outside a terminal, where they belong to the shell.
+  // A text box keeps its menu, which is the one with Paste.
+  window.addEventListener('contextmenu', e => {
+    if (!e.target.closest('.xterm, input:not([type=range])')) e.preventDefault();
+  });
+  window.addEventListener('keydown', e => {
+    const reload = e.key === 'F5' || (e.ctrlKey && e.key.toLowerCase() === 'r');
+    if (reload && !e.target.closest('.xterm')) e.preventDefault();
+  });
+
   window.addEventListener('HybridWebViewMessageReceived', e => {
     const msg = JSON.parse(e.detail.message);
     switch (msg.t) {
