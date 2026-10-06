@@ -58,7 +58,8 @@ You can also build the installer yourself: see [Build the installer](#build-the-
 
 ## Use
 
-The toolbar is at the top right. Hover over an icon for its name.
+The toolbar is a column on the right of the window; the settings can move it to the left
+or to the top. Hover over an icon for its name.
 
 | Icon | What it does |
 |---|---|
@@ -71,8 +72,8 @@ The toolbar is at the top right. Hover over an icon for its name.
 | Gear | Opens the settings. |
 | Question mark | Shows the version, with links to this README and the GitHub repository. A green dot on the icon means a newer version is available; the dialog then has a button that downloads its installer. |
 
-**Settings** hold the default terminal, the startup program, the window transparency and
-the theme. They apply at once and are remembered. With the transparency above zero, the
+**Settings** hold the default terminal, the startup program, the window transparency, the
+side the toolbar is on and the theme. They apply at once and are remembered. With the transparency above zero, the
 desktop shows blurred through the window's background (the title bar, the toolbar and the
 gaps between terminals); terminals, panels and dialogs stay solid. Leave the startup program empty for a plain shell. A fresh
 install starts with `claude` as the startup program.
@@ -137,7 +138,7 @@ Requirements: the .NET 10 SDK with the MAUI Windows workload.
 Requirements: the [WiX toolset](https://wixtoolset.org/) as a .NET tool.
 
     dotnet tool install --global wix
-    pwsh installer\build.ps1 -Version 1.10.1   # artifacts\TermHost-1.10.1-x64.msi
+    pwsh installer\build.ps1 -Version 1.11.0   # artifacts\TermHost-1.11.0-x64.msi
 
 The script publishes a self-contained build to `artifacts\publish` and wraps it in an
 MSI. A newer version replaces an installed older one.

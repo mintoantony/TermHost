@@ -96,6 +96,7 @@ public partial class MainPage : ContentPage
 				["program"] = Preferences.Default.Get("program", DefaultProgram),
 				["theme"] = Preferences.Default.Get("theme", "Catppuccin Mocha"),
 				["layout"] = Preferences.Default.Get("layout", "tabs"),
+				["toolbar"] = Preferences.Default.Get("toolbar", "right"),
 				["glass"] = Preferences.Default.Get("glass", "0"),
 				["mine"] = Preferences.Default.Get("mine", "0"),
 			},
@@ -231,7 +232,7 @@ public partial class MainPage : ContentPage
 				Application.Current?.CloseWindow(Window);
 				break;
 			case "settings":
-				foreach (var key in new[] { "shell", "program", "theme", "layout", "glass", "mine" })
+				foreach (var key in new[] { "shell", "program", "theme", "layout", "toolbar", "glass", "mine" })
 					Preferences.Default.Set(key, Text(key));
 				break;
 			case "chrome":

@@ -43,6 +43,20 @@
   #layout button { display: grid; place-items: center; width: 26px; height: 22px; border-radius: 6px; color: var(--muted); transition: background .15s, color .15s; }
   #layout button[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); }
 
+  /* The toolbar on a side: a column beside the terminals. The tabs stay on top, and only in tabs mode. */
+  #tools { display: contents; }
+  body.side { display: grid; grid-template: auto minmax(0, 1fr) / minmax(0, 1fr) auto; }
+  body.side.left { grid-template-columns: auto minmax(0, 1fr); }
+  body.side #bar { display: contents; }
+  body.side #tabs { grid-area: 1 / 1; align-items: center; height: 40px; padding: 0 8px; }
+  body.side #main { grid-area: 2 / 1; min-width: 0; }
+  body.side.grid #main { padding-top: 6px; }
+  body.side #tools { grid-area: 1 / 2 / 3 / 3; display: flex; flex-direction: column; align-items: center; gap: 10px; width: 42px; padding: 8px 0; }
+  body.side.left #tabs, body.side.left #main { grid-column: 2; }
+  body.side.left #tools { grid-column: 1; }
+  body.side #brand { display: none; }
+  body.side #actions, body.side #layout { flex-direction: column; }
+
   /* Tooltips */
   [data-tip] { position: relative; }
   [data-tip]::after {
@@ -51,6 +65,8 @@
     font-size: 12px; white-space: nowrap; pointer-events: none; opacity: 0; transition: opacity .12s;
   }
   [data-tip]:hover::after { opacity: 1; transition-delay: .35s; }
+  body.side [data-tip]::after { top: 50%; right: calc(100% + 8px); transform: translateY(-50%); }
+  body.side.left [data-tip]::after { right: auto; left: calc(100% + 8px); }
 
   /* Terminals */
   #main { flex: 1; min-height: 0; display: flex; }
@@ -127,9 +143,9 @@
   .code { width: 18px; }
   .staged, .clean { --c: var(--green); } .changed { --c: var(--yellow); } .untracked { --c: var(--muted); } .conflict { --c: var(--red); }
   /* GitHub panel: the filter, then each repository's pull requests and issues */
-  #github-filter { flex: none; display: flex; gap: 2px; margin: 10px 10px 0; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 45%, var(--bg)); box-shadow: inset 0 0 0 1px var(--border); }
-  #github-filter button { flex: 1; height: 24px; border-radius: 6px; font-size: 12px; color: var(--muted); transition: background .15s, color .15s; }
-  #github-filter button[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
+  .seg { flex: none; display: flex; gap: 2px; margin: 10px 10px 0; padding: 2px; border-radius: 8px; background: color-mix(in srgb, var(--surface) 45%, var(--bg)); box-shadow: inset 0 0 0 1px var(--border); }
+  .seg button { flex: 1; height: 24px; border-radius: 6px; font-size: 12px; color: var(--muted); transition: background .15s, color .15s; }
+  .seg button[aria-checked="true"] { background: var(--accent); color: var(--accent-fg); font-weight: 600; }
   .hub { padding: 0 10px 10px; }
   .hub .sub .num { font-weight: 400; letter-spacing: 0; }
   .fold { cursor: pointer; user-select: none; }
@@ -203,7 +219,7 @@
   .swatch b { width: 9px; height: 9px; border-radius: 50%; }
 </style>
 </head>
-<body class="tabs">
+<body class="tabs side">
 
 <svg style="display:none">
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
@@ -233,6 +249,7 @@
 
 <header id="bar">
   <div id="tabs"></div>
+  <div id="tools">
   <div id="brand"><svg class="icon"><use href="#i-terminal"/></svg><span id="count"></span></div>
   <div id="actions">
     <button id="new" class="btn" data-tip="New terminal" aria-label="New terminal"><svg class="icon"><use href="#i-plus"/></svg></button>
@@ -247,6 +264,7 @@
     <button id="github" class="btn" data-tip="GitHub · pull requests and issues" aria-label="GitHub pull requests and issues"><svg class="icon"><use href="#i-github"/></svg></button>
     <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
     <button id="help" class="btn" data-tip="About and help" aria-label="About and help"><svg class="icon"><use href="#i-help"/></svg></button>
+  </div>
   </div>
 </header>
 
@@ -282,7 +300,7 @@
       <span id="github-summary"></span>
       <button id="github-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
     </div>
-    <div id="github-filter" role="radiogroup" aria-label="Show">
+    <div id="github-filter" class="seg" role="radiogroup" aria-label="Show">
       <button role="radio" data-mine="0" title="Every open pull request and issue">All open</button>
       <button role="radio" data-mine="1" title="Pull requests you opened or are assigned to, and issues assigned to you">Only mine</button>
     </div>
@@ -301,6 +319,13 @@
   <p class="hint">Runs in every new terminal. Leave empty for a plain shell.</p>
   <label class="field">Window transparency<span id="glass-value"></span><input id="glass" type="range" min="0" max="80" step="5"></label>
   <p class="hint">Shows the desktop, blurred, through the window's background. Terminals and panels stay solid.</p>
+  <div class="field">Toolbar</div>
+  <div id="toolbar" class="seg" role="radiogroup" aria-label="Toolbar" style="margin: 5px 0 0">
+    <button role="radio" data-side="top">Top</button>
+    <button role="radio" data-side="left">Left</button>
+    <button role="radio" data-side="right">Right</button>
+  </div>
+  <p class="hint">On a side, the toolbar is a column beside the terminals and the tabs keep the top to themselves.</p>
   <div class="field">Theme</div>
   <div id="themes"></div>
 </dialog>
@@ -393,7 +418,7 @@
   const terms = new Map(); // id -> { term, fit, pane, tab }
   let activeId = null;
   let lastFolder = ''; // where the "new terminal with options" dialog starts
-  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs', glass: '0', mine: '0' };
+  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs', toolbar: 'right', glass: '0', mine: '0' };
 
   const send = msg => window.HybridWebView.SendRawMessage(JSON.stringify(msg));
   const saveSettings = () => send({ t: 'settings', ...settings });
@@ -609,6 +634,14 @@
     fitAll();
   }
 
+  function setToolbar(side) {
+    settings.toolbar = side === 'top' || side === 'left' ? side : 'right';
+    document.body.classList.toggle('side', settings.toolbar !== 'top');
+    document.body.classList.toggle('left', settings.toolbar === 'left');
+    for (const button of $('toolbar').children) button.setAttribute('aria-checked', button.dataset.side === settings.toolbar);
+    fitAll();
+  }
+
   function init(msg) {
     settings = { ...settings, ...msg.settings };
     $('shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
@@ -628,6 +661,7 @@
       return swatch;
     }));
     applyTheme(settings.theme);
+    setToolbar(settings.toolbar);
     setLayout(settings.layout);
     renderGitHub();
   }
@@ -1031,6 +1065,12 @@
   dialog.addEventListener('click', e => { if (e.target === dialog) dialog.close(); });
   dialog.addEventListener('close', focusActive);
   $('shell').onchange = () => { settings.shell = $('shell').value; saveSettings(); };
+  $('toolbar').onclick = e => {
+    const button = e.target.closest('button');
+    if (!button) return;
+    setToolbar(button.dataset.side);
+    saveSettings();
+  };
   $('glass').oninput = () => { settings.glass = $('glass').value; applyTheme(settings.theme); saveSettings(); };
   $('program').oninput = () => { settings.program = $('program').value.trim(); saveSettings(); };
 
