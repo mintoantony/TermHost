@@ -211,7 +211,12 @@
   #quit-text { margin: 0; line-height: 1.5; }
   .dlg-foot { display: flex; justify-content: flex-end; gap: 8px; margin-top: 18px; }
   .hint { margin: 5px 0 0; font-size: 12px; color: var(--muted); opacity: .8; }
-  #launch-error { color: var(--red); opacity: 1; }
+  #launch-error, #plan-error { color: var(--red); opacity: 1; }
+  .choice { display: flex; flex-wrap: wrap; gap: 6px 16px; margin-top: 6px; font-size: 13px; color: var(--fg); }
+  .choice label { display: flex; align-items: center; gap: 6px; }
+  .choice input { display: inline; width: auto; margin: 0; accent-color: var(--accent); }
+  .pair { display: grid; grid-template-columns: 90px 1fr; gap: 10px; }
+  .field[hidden] { display: none; }
   #themes { display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px; margin-top: 6px; }
   .swatch { display: flex; flex-direction: column; gap: 7px; padding: 9px; border-radius: 9px; border: 2px solid transparent; text-align: left; font-size: 11px; line-height: 1.2; }
   .swatch.selected { border-color: var(--accent); }
@@ -224,6 +229,7 @@
 <svg style="display:none">
   <symbol id="i-plus" viewBox="0 0 24 24"><path d="M5 12h14"/><path d="M12 5v14"/></symbol>
   <symbol id="i-folder-plus" viewBox="0 0 24 24"><path d="M12 10v6"/><path d="M9 13h6"/><path d="M20 20a2 2 0 0 0 2-2V8a2 2 0 0 0-2-2h-7.9a2 2 0 0 1-1.69-.9L9.6 3.9A2 2 0 0 0 7.93 3H4a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2Z"/></symbol>
+  <symbol id="i-plan" viewBox="0 0 24 24"><path d="M13 5h8"/><path d="M13 12h8"/><path d="M13 19h8"/><path d="m3 4 6 4-6 4z"/><path d="M3 17h5"/></symbol>
   <symbol id="i-x" viewBox="0 0 24 24"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></symbol>
   <symbol id="i-terminal" viewBox="0 0 24 24"><path d="m4 17 6-6-6-6"/><path d="M12 19h8"/></symbol>
   <symbol id="i-tabs" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M10 3v6"/></symbol>
@@ -259,6 +265,7 @@
       <button role="radio" data-mode="grid" data-tip="Tiles · drag the gaps to resize" aria-label="Tiles"><svg class="icon"><use href="#i-grid"/></svg></button>
       <button role="radio" data-mode="row" data-tip="Single row · drag the gaps to resize" aria-label="Single row"><svg class="icon"><use href="#i-row"/></svg></button>
     </div>
+    <button id="run-plan" class="btn" data-tip="Run a plan · its tasks in parallel" aria-label="Run a plan"><svg class="icon"><use href="#i-plan"/></svg></button>
     <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-claude"/></svg><span class="dot"></span></button>
     <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
     <button id="github" class="btn" data-tip="GitHub · pull requests and issues" aria-label="GitHub pull requests and issues"><svg class="icon"><use href="#i-github"/></svg></button>
@@ -349,6 +356,46 @@
     <div class="dlg-foot">
       <button id="launch-cancel" type="button" class="text-btn">Cancel</button>
       <button type="submit" class="text-btn primary">Start</button>
+    </div>
+  </form>
+</dialog>
+
+<dialog id="plan">
+  <form id="plan-form">
+    <div class="dlg-head">
+      <svg class="icon"><use href="#i-plan"/></svg>
+      <h2>Run a plan</h2>
+      <button id="plan-close" type="button" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <span class="field">Plan from</span>
+    <div class="choice" role="radiogroup">
+      <label><input type="radio" name="plan-source" value="git" checked>A file in the repository</label>
+      <label><input type="radio" name="plan-source" value="jira">A Jira issue</label>
+    </div>
+    <label class="field" for="plan-repo">Repository</label>
+    <div class="pick">
+      <input id="plan-repo" spellcheck="false" autocomplete="off" placeholder="The folder of a git repository">
+      <button id="plan-browse" type="button" class="text-btn">Browse…</button>
+    </div>
+    <label class="field" id="plan-file-field">Plan<input id="plan-file" list="plan-files" spellcheck="false" autocomplete="off" placeholder="Type to filter the repository's .md files"></label>
+    <datalist id="plan-files"></datalist>
+    <label class="field" id="plan-jira-field" hidden>Jira issue<input id="plan-jira" spellcheck="false" autocomplete="off" placeholder="PROJ-123, or the issue's address"></label>
+    <div class="pair">
+      <label class="field">At once<input id="plan-tasks" type="number" min="1" max="8" value="4"></label>
+      <label class="field">Terminal<select id="plan-shell"></select></label>
+    </div>
+    <label class="field">Permissions<select id="plan-mode">
+      <option value="">Claude's default</option>
+      <option value="default">Ask each time</option>
+      <option value="acceptEdits">Accept edits</option>
+      <option value="auto">Auto</option>
+      <option value="plan">Plan only</option>
+    </select></label>
+    <p id="plan-error" class="hint" hidden></p>
+    <p class="hint">Opens a planner tab running Claude. It picks the tasks that can run in parallel and asks you, then gives each its own branch, worktree and tab.</p>
+    <div class="dlg-foot">
+      <button id="plan-cancel" type="button" class="text-btn">Cancel</button>
+      <button type="submit" class="text-btn primary">Run</button>
     </div>
   </form>
 </dialog>
@@ -647,6 +694,8 @@
     $('shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
     $('shell').value = settings.shell;
     $('launch-shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
+    $('plan-shell').replaceChildren(...msg.shells.map(name => new Option(name, name)));
+    if (msg.plan) planLast = msg.plan;
     lastFolder = msg.folder;
     $('about-version').textContent = msg.version ? 'v' + msg.version : '';
     $('program').value = settings.program;
@@ -984,7 +1033,17 @@
       case 'exit': removeTerminal(msg.id); break;
       case 'closing': confirmQuit(); break;
       case 'update': showUpdate(msg); break;
-      case 'picked': $('launch-folder').value = msg.folder; launchError(''); break;
+      case 'picked':
+        if (msg.for === 'plan') { $('plan-repo').value = msg.folder; planError(''); askPlanFiles(); }
+        else { $('launch-folder').value = msg.folder; launchError(''); }
+        break;
+      case 'plan-files':
+        if (msg.repo !== planRepo()) break; // the answer for a folder that has since changed
+        $('plan-files').replaceChildren(...(msg.files || []).map(f => new Option(f)));
+        planError(msg.error || (msg.files && !msg.files.length ? 'The repository has no Markdown files.' : ''));
+        break;
+      case 'plan-error': planError(msg.error); break;
+      case 'plan-started': planDialog.close(); break;
       case 'launched': lastFolder = msg.folder; launch.close(); break;
       case 'launch-error': launchError(msg.error); $('launch-folder').focus(); break;
       case 'init': init(msg); break;
@@ -1053,11 +1112,62 @@
     e.preventDefault();
     send({ t: 'launch', shell: $('launch-shell').value, folder: $('launch-folder').value, program: $('launch-program').value });
   };
-  $('launch-browse').onclick = () => send({ t: 'browse' });
+  $('launch-browse').onclick = () => send({ t: 'browse', for: 'launch' });
   $('launch-folder').oninput = () => launchError('');
   $('launch-close').onclick = $('launch-cancel').onclick = () => launch.close();
   launch.addEventListener('click', e => { if (e.target === launch) launch.close(); });
   launch.addEventListener('close', focusActive);
+  // Run a plan: TermHost opens a planner tab; the termhost-plan skill in it does the rest.
+  const planDialog = $('plan');
+  let planLast = { source: 'git', repo: '', plan: '', jira: '', tasks: 4, mode: '' };
+  let planTimer = 0;
+  function planError(text) {
+    $('plan-error').textContent = text;
+    $('plan-error').hidden = !text;
+  }
+  const planRepo = () => $('plan-repo').value.trim().replace(/^"|"$/g, '');
+  const planSource = () => planDialog.querySelector('input[name=plan-source]:checked').value;
+  function showPlanSource() {
+    const jira = planSource() === 'jira';
+    $('plan-file-field').hidden = jira;
+    $('plan-jira-field').hidden = !jira;
+  }
+  function askPlanFiles() {
+    clearTimeout(planTimer);
+    planTimer = setTimeout(() => send({ t: 'plan-files', repo: planRepo() }), 300);
+  }
+  $('run-plan').onclick = () => {
+    for (const radio of planDialog.querySelectorAll('input[name=plan-source]')) radio.checked = radio.value === planLast.source;
+    $('plan-repo').value = planLast.repo;
+    $('plan-file').value = planLast.plan;
+    $('plan-jira').value = planLast.jira;
+    $('plan-tasks').value = planLast.tasks;
+    $('plan-mode').value = planLast.mode;
+    $('plan-shell').value = settings.shell;
+    showPlanSource();
+    planError('');
+    $('plan-files').replaceChildren();
+    if (planLast.repo) askPlanFiles();
+    planDialog.showModal();
+    (planLast.repo ? (planSource() === 'jira' ? $('plan-jira') : $('plan-file')) : $('plan-repo')).focus();
+  };
+  for (const radio of planDialog.querySelectorAll('input[name=plan-source]'))
+    radio.onchange = () => { showPlanSource(); planError(''); };
+  $('plan-repo').oninput = () => { planError(''); askPlanFiles(); };
+  $('plan-browse').onclick = () => send({ t: 'browse', for: 'plan' });
+  $('plan-form').onsubmit = e => {
+    e.preventDefault();
+    const source = planSource();
+    planLast = {
+      source, repo: planRepo(), plan: $('plan-file').value.trim(), jira: $('plan-jira').value.trim(),
+      tasks: Number($('plan-tasks').value) || 4, mode: $('plan-mode').value,
+    };
+    send({ t: 'run-plan', source, repo: planLast.repo, plan: source === 'jira' ? planLast.jira : planLast.plan,
+      tasks: planLast.tasks, shell: $('plan-shell').value, mode: planLast.mode });
+  };
+  $('plan-close').onclick = $('plan-cancel').onclick = () => planDialog.close();
+  planDialog.addEventListener('click', e => { if (e.target === planDialog) planDialog.close(); });
+  planDialog.addEventListener('close', focusActive);
   for (const button of $('layout').children)
     button.onclick = () => { setLayout(button.dataset.mode); saveSettings(); focusActive(); };
   $('settings').onclick = () => dialog.showModal();

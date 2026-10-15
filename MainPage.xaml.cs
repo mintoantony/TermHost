@@ -48,6 +48,7 @@ public partial class MainPage : ContentPage
 	public MainPage()
 	{
 		InitializeComponent();
+		PlanRun.Prepare(AppVersion);
 		// The first window takes the terminals that later launches ask for.
 		if (!Startup.NewWindow)
 			LaunchPipe.Serve(OnLaunch, _closing.Token);
@@ -102,6 +103,16 @@ public partial class MainPage : ContentPage
 				["toolbar"] = Preferences.Default.Get("toolbar", "right"),
 				["glass"] = Preferences.Default.Get("glass", "0"),
 				["mine"] = Preferences.Default.Get("mine", "0"),
+			},
+			// What the Run a plan dialog was last used with.
+			["plan"] = new JsonObject
+			{
+				["source"] = Preferences.Default.Get("plan-source", "git"),
+				["repo"] = Preferences.Default.Get("plan-repo", ""),
+				["plan"] = Preferences.Default.Get("plan-plan", ""),
+				["jira"] = Preferences.Default.Get("plan-jira", ""),
+				["tasks"] = Preferences.Default.Get("plan-tasks", 4),
+				["mode"] = Preferences.Default.Get("plan-mode", ""),
 			},
 		};
 		Web.SendRawMessage(init.ToJsonString());
@@ -235,7 +246,13 @@ public partial class MainPage : ContentPage
 				Launch(Text("shell"), Text("program").Trim(), Text("folder").Trim());
 				break;
 			case "browse":
-				Browse();
+				Browse(msg.TryGetProperty("for", out var picker) ? picker.GetString() ?? "" : "");
+				break;
+			case "plan-files":
+				PlanFiles(Text("repo").Trim().Trim('"'));
+				break;
+			case "run-plan":
+				RunPlan(msg);
 				break;
 			case "git":
 				_gitOpen = msg.GetProperty("open").GetBoolean();
@@ -316,8 +333,51 @@ public partial class MainPage : ContentPage
 		NewTerminal(_shells.FirstOrDefault(s => s.Name == shellName) ?? DefaultShell, program, folder);
 	}
 
+	// The Markdown files of the repository the Run a plan dialog names, for its plan list. Off the UI thread: git can be slow.
+	void PlanFiles(string folder) => Task.Run(() =>
+	{
+		var root = PlanRun.RepoRoot(folder);
+		var reply = new JsonObject { ["t"] = "plan-files", ["repo"] = folder };
+		if (root is null)
+			reply["error"] = folder.Length == 0 ? null : "That folder is not in a git repository.";
+		else
+			reply["files"] = new JsonArray(PlanRun.Plans(root).Select(f => (JsonNode)f).ToArray());
+		Dispatcher.Dispatch(() => Web.SendRawMessage(reply.ToJsonString()));
+	});
+
+	// Run a plan: one planner tab in the repository, running Claude with the termhost-plan skill.
+	void RunPlan(JsonElement msg)
+	{
+		string Text(string name) => msg.GetProperty(name).GetString()?.Trim() ?? "";
+		var (source, folder, plan, mode) = (Text("source"), Text("repo").Trim('"'), Text("plan"), Text("mode"));
+		var tasks = msg.GetProperty("tasks").GetInt32();
+		var shell = _shells.FirstOrDefault(s => s.Name == Text("shell")) ?? DefaultShell;
+		Task.Run(() =>
+		{
+			var root = PlanRun.RepoRoot(folder);
+			string? error = root is null ? "That folder is not in a git repository." : null;
+			var command = root is null ? "" : PlanRun.Command(root, source, plan, tasks, shell.Name, mode, out error);
+			Dispatcher.Dispatch(() =>
+			{
+				if (error is not null)
+				{
+					Web.SendRawMessage(new JsonObject { ["t"] = "plan-error", ["error"] = error }.ToJsonString());
+					return;
+				}
+				Preferences.Default.Set("plan-source", source);
+				Preferences.Default.Set("plan-repo", root!);
+				Preferences.Default.Set(source == "jira" ? "plan-jira" : "plan-plan", plan);
+				Preferences.Default.Set("plan-tasks", tasks);
+				Preferences.Default.Set("plan-mode", mode);
+				Web.SendRawMessage("{\"t\":\"plan-started\"}");
+				var name = source == "jira" ? plan : Path.GetFileNameWithoutExtension(plan);
+				NewTerminal(shell, command, root!, $"plan: {name}");
+			});
+		});
+	}
+
 	// The native folder picker, for the dialog's Browse button.
-	async void Browse()
+	async void Browse(string target)
 	{
 #if WINDOWS
 		if (Window?.Handler?.PlatformView is not Microsoft.UI.Xaml.Window native)
@@ -328,7 +388,7 @@ public partial class MainPage : ContentPage
 		try
 		{
 			if (await picker.PickSingleFolderAsync() is { } picked)
-				Web.SendRawMessage(new JsonObject { ["t"] = "picked", ["folder"] = picked.Path }.ToJsonString());
+				Web.SendRawMessage(new JsonObject { ["t"] = "picked", ["for"] = target, ["folder"] = picked.Path }.ToJsonString());
 		}
 		catch (Exception)
 		{

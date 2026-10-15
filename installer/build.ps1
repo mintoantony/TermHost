@@ -13,6 +13,11 @@ dotnet publish (Join-Path $root 'TermHost.csproj') -c Release -f net10.0-windows
     --self-contained -p:WindowsAppSDKSelfContained=true -p:ApplicationDisplayVersion=$Version -o $publish
 if ($LASTEXITCODE -ne 0) { throw 'dotnet publish failed' }
 
+# th.exe, for scripts and the Run a plan workers: one self-contained file beside TermHost.exe.
+dotnet publish (Join-Path $root 'cli\th.csproj') -c Release -r win-x64 --self-contained `
+    -p:PublishSingleFile=true -p:PublishTrimmed=true -p:Version=$Version -o $publish
+if ($LASTEXITCODE -ne 0) { throw 'dotnet publish of th failed' }
+
 wix build (Join-Path $PSScriptRoot 'TermHost.wxs') -arch x64 -d "PublishDir=$publish" -d "Version=$Version" -o $msi
 if ($LASTEXITCODE -ne 0) { throw 'wix build failed' }
 

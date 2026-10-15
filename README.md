@@ -28,6 +28,11 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
   every worktree the branch, distance from its upstream, changed files and last commit.
 - **GitHub panel:** for the same repositories: the open pull requests and open issues,
   each a link to its page, with a filter for your own.
+- **Run a plan:** takes a plan, a Markdown file in a repository or a Jira issue, and runs
+  the tasks that can go in parallel (4 by default), each in its own branch, worktree and
+  terminal, with Claude doing the task the way the repository's `CLAUDE.md` says.
+- **`th` command:** scripts and other programs open terminals in TermHost, for example
+  `th D:\repo -c "claude --resume"`.
 
 ## Install
 
@@ -49,6 +54,9 @@ You can also build the installer yourself: see [Build the installer](#build-the-
 - It adds **Open in TermHost** to the right-click menu of folders and drives in File
   Explorer. On Windows 11 this is under **Show more options** (or hold Shift while you
   right-click).
+- It puts its folder on your PATH, for the `th` command, and copies the Claude Code
+  skills `termhost-plan` and `termhost-task` to `%USERPROFILE%\.claude\skills` when it
+  first starts after an install or update.
 - .NET and the Windows App SDK are included, so nothing else has to be installed.
 - The installer is not signed, so Windows may show a SmartScreen warning.
 - To remove it, use **Settings > Apps > Installed apps**. Your settings are kept.
@@ -66,6 +74,7 @@ or to the top. Hover over an icon for its name.
 | Plus | Opens a new terminal: the default terminal, running the startup program. |
 | Folder with a plus | Opens a dialog to choose the terminal, the folder and the command for one new terminal. |
 | Tabs / tiles / row | Chooses the layout: tabs, a grid of all terminals, or all terminals side by side in a single row. In the grid and the row, drag the gaps to resize. |
+| List with a play mark | Opens **Run a plan**. |
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
 | GitHub mark | Opens the GitHub panel. |
@@ -108,6 +117,41 @@ while the panel is open.
 
 The Claude, Git and GitHub panels share one place at the right of the window, so opening
 one closes the others.
+
+**Run a plan:** choose where the plan comes from, the repository, and the plan: one of the
+repository's Markdown files (type to filter them) or a Jira issue key such as `PROJ-123`.
+Then choose how many tasks run at once, the terminal and the permission mode for Claude.
+**Run** opens a planner tab running Claude with the `termhost-plan` skill. The planner:
+
+1. reads the repository's `CLAUDE.md` and follows it where it says how branches, worktrees
+   and finished work are handled;
+2. reads the plan's tasks (for Jira, the issue's child issues, through Claude's Atlassian
+   connector) and which of them are done or running;
+3. picks the open tasks whose dependencies are done and that do not touch the same files,
+   shows them with their branches and worktrees, and **waits for you to say go**;
+4. creates a branch for each from the current branch, and a worktree under the
+   repository's `.worktrees` folder (kept out of git through `.git/info/exclude`);
+5. opens a tab for each task, running Claude with the `termhost-task` skill.
+
+Each worker does its one task, runs the project's build and tests, and finishes the way
+`CLAUDE.md` says; when it says nothing, it commits, pushes and opens a pull request with
+`gh`. Progress is kept in `.git/termhost/<plan>/`, one file per task, shared by all the
+worktrees. When tasks finish, say **next batch** in the planner tab to start the next ones.
+Nothing is merged and no worktree is removed unless you ask.
+
+**From a script:** `th` opens a terminal as a new tab in the TermHost window that is open,
+or starts TermHost when none is.
+
+```
+th [folder] [--command <command>] [--shell <name>] [--title <text>] [--new-window]
+```
+
+The folder is the current one when not given; the command, when not given, is the startup
+program (`""` for a plain shell). `th` exits with 0 when the terminal opened, 2 for wrong
+options or a folder or terminal that does not exist, and 3 when TermHost cannot be reached.
+`TermHost.exe` takes the same options. With TermHost open, **Open in TermHost** in File
+Explorer also opens a tab in that window instead of a new one; `--new-window` gives a window
+of its own.
 
 ## Limits
 

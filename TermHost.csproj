@@ -67,6 +67,8 @@
 		<!-- th.exe is a project of its own, which shares LaunchProtocol.cs with this one. -->
 		<Compile Remove="cli\**" />
 		<None Remove="cli\**" />
+		<!-- The Claude Code skills of Run a plan: TermHost copies them to ~/.claude/skills. -->
+		<None Include="skills\**" CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
 	</ItemGroup>
 
 	<ItemGroup>

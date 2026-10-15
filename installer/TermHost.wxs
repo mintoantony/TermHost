@@ -25,6 +25,11 @@
                   Target="[INSTALLFOLDER]TermHost.exe" WorkingDirectory="INSTALLFOLDER" Icon="TermHost.exe" />
         <RegistryValue Root="HKCU" Key="Software\TermHost" Name="Installed" Type="integer" Value="1" KeyPath="yes" />
       </Component>
+      <!-- th.exe on the user's PATH, so that scripts can open terminals in TermHost. -->
+      <Component Id="PathEntry" Directory="INSTALLFOLDER">
+        <Environment Id="Path" Name="PATH" Value="[INSTALLFOLDER]" Part="last" Action="set" System="no" Permanent="no" />
+        <RegistryValue Root="HKCU" Key="Software\TermHost" Name="OnPath" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
       <!-- "Open in TermHost" in File Explorer: on a folder, on the empty space inside a folder, and on a drive. -->
       <Component Id="FolderMenu" Directory="INSTALLFOLDER">
         <RegistryKey Root="HKCU" Key="Software\Classes\Directory\shell\TermHost">
