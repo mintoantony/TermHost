@@ -64,6 +64,12 @@
 	</ItemGroup>
 
 	<ItemGroup>
+		<!-- th.exe is a project of its own, which shares LaunchProtocol.cs with this one. -->
+		<Compile Remove="cli\**" />
+		<None Remove="cli\**" />
+	</ItemGroup>
+
+	<ItemGroup>
 		<PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiVersion)" />
 		<PackageReference Include="Microsoft.Extensions.Logging.Debug" Version="10.0.0" />
 	</ItemGroup>

@@ -343,9 +343,15 @@ public sealed partial class ClaudeStatus
 		}
 		if (HostOf(pid, ParentPids()) is not { } host)
 			return;
-		if (IsIconic(host.Window))
-			ShowWindow(host.Window, SW_RESTORE);
-		SetForegroundWindow(host.Window);
+		Raise(host.Window);
+	}
+
+	// A window brought to the front, restored first when it is minimised.
+	public static void Raise(IntPtr window)
+	{
+		if (IsIconic(window))
+			ShowWindow(window, SW_RESTORE);
+		SetForegroundWindow(window);
 	}
 
 	const int SW_RESTORE = 9;

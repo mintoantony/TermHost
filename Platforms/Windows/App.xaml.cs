@@ -16,6 +16,18 @@ public partial class App : MauiWinUIApplication
 	/// </summary>
 	public App()
 	{
+		// With TermHost already open, the terminal asked for becomes a tab there and no second window opens.
+		if (!MainPage.Startup.NewWindow && LaunchPipe.Running())
+		{
+			try
+			{
+				Environment.Exit(LaunchPipe.Send(MainPage.Startup, 3000) is null ? 0 : 2);
+			}
+			catch (Exception e) when (e is IOException or TimeoutException)
+			{
+				// The open window does not answer: this one opens instead.
+			}
+		}
 		// WebView2 keeps its data beside the executable by default, which an installed
 		// copy may not be allowed to write to: keep it with the user's other app data.
 		Environment.SetEnvironmentVariable("WEBVIEW2_USER_DATA_FOLDER",

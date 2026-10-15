@@ -41,9 +41,16 @@ public partial class MainPage : ContentPage
 	// Closing the window: asked of the web view, which knows what is still running, and then allowed.
 	bool _closeHooked, _closeAsked, _closeAllowed;
 
+	// Whether the page has said it is ready: until then, terminals asked for from outside wait here.
+	bool _ready;
+	readonly List<LaunchRequest> _waiting = new();
+
 	public MainPage()
 	{
 		InitializeComponent();
+		// The first window takes the terminals that later launches ask for.
+		if (!Startup.NewWindow)
+			LaunchPipe.Serve(OnLaunch, _closing.Token);
 	}
 
 	public void CloseAll()
@@ -57,27 +64,23 @@ public partial class MainPage : ContentPage
 	Shell DefaultShell =>
 		_shells.FirstOrDefault(s => s.Name == Preferences.Default.Get("shell", "")) ?? _shells[0];
 
-	// Where new terminals start: the folder TermHost was opened in from File Explorer, otherwise the home folder.
-	static readonly string StartFolder = LaunchFolder() ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
-	static readonly bool Launched = LaunchFolder() is not null;
+	// What TermHost was started with: a folder from "Open in TermHost", or the options of th.exe or a script.
+	internal static readonly LaunchRequest Startup = FromCommandLine();
 
-	// The folder given on the command line by "Open in TermHost". Only ever an existing directory.
-	static string? LaunchFolder()
+	// Where new terminals start: the folder TermHost was opened in, otherwise the home folder.
+	static readonly string StartFolder = Startup.Folder ?? Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+	static readonly bool Launched = Startup.Folder is not null;
+
+	static LaunchRequest FromCommandLine()
 	{
-		var args = Environment.GetCommandLineArgs();
-		if (args.Length < 2)
-			return null;
-		// A drive arrives as "D:\" in quotes, which command-line parsing turns into D:" .
-		var folder = args[1].Trim('"');
-		if (folder.EndsWith(':'))
-			folder += Path.DirectorySeparatorChar;
 		try
 		{
-			return Directory.Exists(folder) ? Path.GetFullPath(folder) : null;
+			return LaunchRequest.Parse(Environment.GetCommandLineArgs()[1..]);
 		}
-		catch (Exception)
+		catch (ArgumentException)
 		{
-			return null;
+			// A window has nowhere to say what was wrong: it opens as if started without options.
+			return new LaunchRequest();
 		}
 	}
 
@@ -143,13 +146,42 @@ public partial class MainPage : ContentPage
 	void NewTerminal() =>
 		NewTerminal(DefaultShell, Preferences.Default.Get("program", DefaultProgram).Trim(), StartFolder);
 
-	void NewTerminal(Shell shell, string program, string folder)
+	void NewTerminal(Shell shell, string program, string folder, string? tabName = null)
 	{
 		int id = _nextId++;
 		_pending[id] = (CommandLine(shell, program), folder);
-		var name = program.Length == 0 ? shell.Name : program.Length > 24 ? program[..24] + "…" : program;
+		var name = tabName ?? (program.Length == 0 ? shell.Name : program.Length > 24 ? program[..24] + "…" : program);
 		var title = JsonEncodedText.Encode($"{name} {id}");
 		Web.SendRawMessage($"{{\"t\":\"new\",\"id\":{id},\"title\":\"{title}\"}}");
+	}
+
+	// A terminal asked for over the pipe, by th.exe or by another start of TermHost. Null when it is opened, else why not.
+	Task<string?> OnLaunch(LaunchRequest request) => Dispatcher.DispatchAsync(() =>
+	{
+		if (request.Folder is not null && !Directory.Exists(request.Folder))
+			return $"The folder {request.Folder} does not exist.";
+		if (request.Shell is not null && _shells.All(s => s.Name != request.Shell))
+			return $"There is no terminal named {request.Shell}. There are: {string.Join(", ", _shells.Select(s => s.Name))}.";
+		if (_ready)
+			Open(request);
+		else
+			_waiting.Add(request);
+		BringToFront();
+		return (string?)null;
+	});
+
+	// A terminal as asked for at start or from outside; what is not given is as the settings say.
+	void Open(LaunchRequest request) =>
+		NewTerminal(_shells.FirstOrDefault(s => s.Name == request.Shell) ?? DefaultShell,
+			(request.Command ?? Preferences.Default.Get("program", DefaultProgram)).Trim(),
+			request.Folder ?? StartFolder, request.Title);
+
+	void BringToFront()
+	{
+#if WINDOWS
+		if (Window?.Handler?.PlatformView is Microsoft.UI.Xaml.Window native)
+			ClaudeStatus.Raise(WinRT.Interop.WindowNative.GetWindowHandle(native));
+#endif
 	}
 
 	// Runs the startup program inside the shell and leaves the shell open when it ends.
@@ -184,7 +216,16 @@ public partial class MainPage : ContentPage
 				ConfirmClosing();
 				CheckForUpdate();
 				SendInit();
-				NewTerminal();
+				if (_ready)
+					NewTerminal();
+				else
+				{
+					_ready = true;
+					Open(Startup);
+					foreach (var waiting in _waiting)
+						Open(waiting);
+					_waiting.Clear();
+				}
 				WatchClaude();
 				break;
 			case "new":
