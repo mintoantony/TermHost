@@ -186,6 +186,11 @@
   .cmd-edit { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; opacity: 0; }
   .cmd:hover .cmd-edit, .cmd-edit:focus-visible { opacity: 1; }
   .cmd-edit .icon { width: 12px; height: 12px; }
+  .cmd-run:disabled { cursor: progress; }
+  .cmd-state { position: absolute; top: 6px; left: 7px; width: 12px; height: 12px; color: var(--c); pointer-events: none; }
+  .cmd-state.running { animation: spin 1s linear infinite; }
+  .cmd-state.ok { --c: var(--green); } .cmd-state.failed { --c: var(--red); }
+  @keyframes spin { to { transform: rotate(360deg); } }
   #commands-add[hidden] { display: none; }
   #commands-form { display: flex; flex-direction: column; }
   #commands-form .field:first-of-type { margin-top: 0; }
@@ -266,7 +271,9 @@
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
   <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
-  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
+  <symbol id="i-check" viewBox="0 0 24 24"><path d="M20 6 9 17l-5-5"/></symbol>
+  <symbol id="i-loader" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.22-8.56"/></symbol>
+  <symbol id="i-pencil"viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
 
@@ -973,8 +980,19 @@
 
   // ---- Commands panel: saved commands as buttons; a press types one into the active terminal ----
 
-  let commands = [];    // { label, description, command }, kept in the settings as JSON
+  let commands = [];    // { label, description, command, mode }, kept in the settings as JSON
   let editing = null;   // the index of the command in the form, -1 for a new one, or null while the grid shows
+  const RUN_IN = { active: 'Active terminal', new: 'New terminal', background: 'Background' };
+  const runs = new Map();    // command -> 'running' or the exit code of its last run in the background
+  const running = new Map(); // key of a background run -> its command
+  let runKey = 0;
+
+  function commandDone(msg) {
+    const c = running.get(msg.key);
+    running.delete(msg.key);
+    if (c) runs.set(c, msg.code);
+    renderCommands();
+  }
 
   function loadCommands() {
     try { commands = JSON.parse(settings.commands || '[]'); } catch { commands = []; }
@@ -997,7 +1015,10 @@
         <label class="field">Button label<input name="label" required spellcheck="false" autocomplete="off" value="${esc(c.label)}" placeholder="Build"></label>
         <label class="field">Description<input name="description" spellcheck="false" autocomplete="off" value="${esc(c.description)}" placeholder="What it does, shown when you point at the button"></label>
         <label class="field">Command<input name="command" class="mono" required spellcheck="false" autocomplete="off" value="${esc(c.command)}" placeholder="dotnet build -c Debug"></label>
-        <p class="hint">A press types the command into the active terminal and presses Enter.</p>
+        <span class="field">Run in</span>
+        <div class="choice" role="radiogroup">${Object.entries(RUN_IN).map(([mode, text]) =>
+          `<label><input type="radio" name="mode" value="${mode}"${(c.mode ?? 'active') === mode ? ' checked' : ''}>${text}</label>`).join('')}</div>
+        <p class="hint">In the background, the button shows a tick or a cross when the command ends.</p>
         <div class="dlg-foot">
           ${editing >= 0 ? '<button type="button" class="text-btn" data-act="delete">Delete</button>' : ''}
           <span class="spacer"></span>
@@ -1010,8 +1031,13 @@
     }
     rebuild(body, commands.length
       ? '<div class="cmd-grid">' + commands.map((c, i) => {
-          const tip = (c.description ? c.description + '\n' : '') + c.command;
-          return `<div class="cmd"><button class="cmd-run" data-run="${i}" title="${esc(tip)}">${esc(c.label)}</button>`
+          const state = runs.get(c);
+          let tip = (c.description ? c.description + '\n' : '') + c.command + '\nRuns in ' + RUN_IN[c.mode ?? 'active'].toLowerCase();
+          let mark = '';
+          if (state === 'running') { mark = 'running'; tip += '\nRunning…'; }
+          else if (state !== undefined) { mark = state === 0 ? 'ok' : 'failed'; tip += state === 0 ? '\nDone' : `\nFailed with exit code ${state}`; }
+          return `<div class="cmd"><button class="cmd-run" data-run="${i}" title="${esc(tip)}"${mark === 'running' ? ' disabled' : ''}>${esc(c.label)}</button>`
+            + (mark ? `<svg class="icon cmd-state ${mark}"><use href="#i-${{ running: 'loader', ok: 'check', failed: 'x' }[mark]}"/></svg>` : '')
             + `<button class="btn cmd-edit" data-edit="${i}" title="Edit" aria-label="Edit ${esc(c.label)}">${icon('pencil')}</button></div>`;
         }).join('') + '</div>'
       : '<div class="c-empty">No commands yet. Add one with + to get a button for it here.</div>');
@@ -1023,7 +1049,17 @@
   }
 
   function runCommand(c) {
-    if (terms.has(activeId)) {
+    const mode = c.mode ?? 'active';
+    if (mode === 'background') {
+      if (runs.get(c) === 'running') return;
+      const key = ++runKey;
+      runs.set(c, 'running');
+      running.set(key, c);
+      send({ t: 'command', mode, key, command: c.command, folder: lastFolder });
+      renderCommands();
+    } else if (mode === 'new') {
+      send({ t: 'command', mode, command: c.command, label: c.label, folder: lastFolder });
+    } else if (terms.has(activeId)) {
       send({ t: 'in', id: activeId, d: c.command + '\r' });
       focusActive();
     } else {
@@ -1045,7 +1081,7 @@
   $('commands-body').addEventListener('submit', e => {
     e.preventDefault();
     const form = new FormData(e.target);
-    const c = { label: form.get('label').trim(), description: form.get('description').trim(), command: form.get('command').trim() };
+    const c = { label: form.get('label').trim(), description: form.get('description').trim(), command: form.get('command').trim(), mode: form.get('mode') ?? 'active' };
     if (!c.label || !c.command) return;
     if (editing >= 0) commands[editing] = c; else commands.push(c);
     saveCommands();
@@ -1165,6 +1201,7 @@
       case 'launched': lastFolder = msg.folder; launch.close(); break;
       case 'launch-error': launchError(msg.error); $('launch-folder').focus(); break;
       case 'init': init(msg); break;
+      case 'command-done': commandDone(msg); break;
       case 'status':
         claude = msg;
         if (msg.git) repos = msg.git;

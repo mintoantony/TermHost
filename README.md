@@ -29,7 +29,7 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
 - **GitHub panel:** for the same repositories: the open pull requests and open issues,
   each a link to its page, with a filter for your own.
 - **Commands panel:** your own commands as buttons. Each has a label, a description and
-  the command; a press types the command into the active terminal.
+  the command, and runs in the active terminal, in a new terminal or in the background.
 - **Run a plan:** takes a plan, a Markdown file in a repository or a Jira issue, and runs
   the tasks that can go in parallel (4 by default), each in its own branch, worktree and
   terminal, with Claude doing the task the way the repository's `CLAUDE.md` says.
@@ -119,10 +119,19 @@ to collapse that list; the counts stay in view. The lists are read again every m
 while the panel is open.
 
 **Commands panel:** the plus in its header adds a command: a button label, a description
-(optional) and the command. Each command is a button; hover over it to see its
-description and command. A press types the command into the active terminal and presses
-Enter, and what happens then is up to the command. With no terminal open, a new terminal
-runs it. The pencil in a button's corner edits the command or deletes it. The commands
+(optional), the command and where it runs. Each command is a button; hover over it to see
+its description and command. A press runs the command where its **Run in** says:
+
+- **Active terminal:** types the command into the active terminal and presses Enter; what
+  happens then is up to the command. With no terminal open, a new terminal runs it.
+- **New terminal:** opens a terminal named after the button and runs the command in it.
+  The shell stays open when the command ends.
+- **Background:** runs the command in the default terminal's shell with no window. The
+  button shows a spinner while it runs, then a tick, or a cross when the command failed;
+  hover over the button for the exit code. It cannot be pressed again while it runs.
+
+New terminals and the background start in the folder the **New terminal** dialog last
+used. The pencil in a button's corner edits the command or deletes it. The commands
 are remembered with the settings and are the same in every window and folder.
 
 The Claude, Git, GitHub and Commands panels share one place at the right of the window, so opening

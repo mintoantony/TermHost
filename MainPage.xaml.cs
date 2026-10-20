@@ -247,6 +247,9 @@ public partial class MainPage : ContentPage
 			case "launch":
 				Launch(Text("shell"), Text("program").Trim(), Text("folder").Trim());
 				break;
+			case "command":
+				RunCommand(msg);
+				break;
 			case "browse":
 				Browse(msg.TryGetProperty("for", out var picker) ? picker.GetString() ?? "" : "");
 				break;
@@ -333,6 +336,72 @@ public partial class MainPage : ContentPage
 		Preferences.Default.Set("folder", folder);
 		Web.SendRawMessage(new JsonObject { ["t"] = "launched", ["folder"] = folder }.ToJsonString());
 		NewTerminal(_shells.FirstOrDefault(s => s.Name == shellName) ?? DefaultShell, program, folder);
+	}
+
+	// A button of the Commands panel that runs in a new terminal, or in the background with no terminal at all.
+	// Both start in the folder the web view asks for, or where new terminals start when that one is gone.
+	void RunCommand(JsonElement msg)
+	{
+		var command = msg.GetProperty("command").GetString()?.Trim() ?? "";
+		var folder = msg.TryGetProperty("folder", out var f) ? f.GetString()?.Trim().Trim('"') ?? "" : "";
+		if (folder.Length == 0 || !Directory.Exists(folder))
+			folder = StartFolder;
+		if (msg.GetProperty("mode").GetString() == "new")
+		{
+			NewTerminal(DefaultShell, command, folder, msg.GetProperty("label").GetString());
+			return;
+		}
+		var key = msg.GetProperty("key").GetInt32();
+		var (file, arguments) = BackgroundCommandLine(DefaultShell, command);
+		Task.Run(async () =>
+		{
+			int code;
+			try
+			{
+				var start = new ProcessStartInfo(file, arguments)
+				{
+					WorkingDirectory = folder,
+					UseShellExecute = false,
+					CreateNoWindow = true,
+					// Nothing can be typed into it: a command that asks for input gets end of input instead of waiting forever.
+					RedirectStandardInput = true,
+				};
+				using var process = Process.Start(start)!;
+				process.StandardInput.Close();
+				await process.WaitForExitAsync(_closing.Token);
+				code = process.ExitCode;
+			}
+			catch (OperationCanceledException)
+			{
+				return;
+			}
+			catch (Exception)
+			{
+				code = -1;
+			}
+			Dispatcher.Dispatch(() => Web.SendRawMessage(new JsonObject { ["t"] = "command-done", ["key"] = key, ["code"] = code }.ToJsonString()));
+		});
+	}
+
+	// The program and arguments that run a command in the shell with no terminal, and end with the command's exit code.
+	static (string File, string Arguments) BackgroundCommandLine(Shell shell, string program)
+	{
+		// The shell's own command line: a program, quoted when its path has spaces, and its options.
+		var line = shell.Command;
+		var split = line.StartsWith('"') ? line.IndexOf('"', 1) + 1 : line.IndexOf(' ');
+		var file = (split <= 0 ? line : line[..split]).Trim('"');
+		var options = split <= 0 ? "" : line[split..].Trim();
+		var quoted = program.Replace("\"", "\\\"");
+		return shell.Kind switch
+		{
+			// A cmdlet that fails leaves no exit code of its own: 1 then, as for a failed command in the other shells.
+			ShellKind.PowerShell => (file, $"{options} -NonInteractive -EncodedCommand {Convert.ToBase64String(Encoding.Unicode.GetBytes(
+				program + "\nif ($?) { exit 0 } elseif ($LASTEXITCODE) { exit $LASTEXITCODE } else { exit 1 }"))}"),
+			ShellKind.Cmd => (file, $"/S /C \"{program}\""),
+			// Not the interactive login shell the terminals get: -i would wait for a terminal that is not there.
+			ShellKind.Bash => (file, $"--login -c \"{quoted}\""),
+			_ => (file, $"-e bash -lc \"{quoted}\""),
+		};
 	}
 
 	// The Markdown files of the repository the Run a plan dialog names, for its plan list. Off the UI thread: git can be slow.
