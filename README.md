@@ -28,6 +28,8 @@ pseudo console (ConPTY) and drawn with [xterm.js](https://xtermjs.org/).
   every worktree the branch, distance from its upstream, changed files and last commit.
 - **GitHub panel:** for the same repositories: the open pull requests and open issues,
   each a link to its page, with a filter for your own.
+- **Commands panel:** your own commands as buttons. Each has a label, a description and
+  the command; a press types the command into the active terminal.
 - **Run a plan:** takes a plan, a Markdown file in a repository or a Jira issue, and runs
   the tasks that can go in parallel (4 by default), each in its own branch, worktree and
   terminal, with Claude doing the task the way the repository's `CLAUDE.md` says.
@@ -78,6 +80,7 @@ or to the top. Hover over an icon for its name.
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
 | Branch | Opens the Git panel. |
 | GitHub mark | Opens the GitHub panel. |
+| Lightning bolt | Opens the Commands panel. |
 | Gear | Opens the settings. |
 | Question mark | Shows the version, with links to this README and the GitHub repository. A green dot on the icon means a newer version is available; the dialog then has a button that downloads its installer. |
 
@@ -115,7 +118,14 @@ choice is remembered. A draft pull request is marked **Draft**. Click a reposito
 to collapse that list; the counts stay in view. The lists are read again every minute
 while the panel is open.
 
-The Claude, Git and GitHub panels share one place at the right of the window, so opening
+**Commands panel:** the plus in its header adds a command: a button label, a description
+(optional) and the command. Each command is a button; hover over it to see its
+description and command. A press types the command into the active terminal and presses
+Enter, and what happens then is up to the command. With no terminal open, a new terminal
+runs it. The pencil in a button's corner edits the command or deletes it. The commands
+are remembered with the settings and are the same in every window and folder.
+
+The Claude, Git, GitHub and Commands panels share one place at the right of the window, so opening
 one closes the others.
 
 **Run a plan:** choose where the plan comes from, the repository, and the plan: one of the

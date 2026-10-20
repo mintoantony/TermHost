@@ -103,6 +103,8 @@ public partial class MainPage : ContentPage
 				["toolbar"] = Preferences.Default.Get("toolbar", "right"),
 				["glass"] = Preferences.Default.Get("glass", "0"),
 				["mine"] = Preferences.Default.Get("mine", "0"),
+				// The Commands panel's saved commands, as a JSON array of { label, description, command }.
+				["commands"] = Preferences.Default.Get("commands", "[]"),
 			},
 			// What the Run a plan dialog was last used with.
 			["plan"] = new JsonObject
@@ -290,7 +292,7 @@ public partial class MainPage : ContentPage
 				Application.Current?.CloseWindow(Window);
 				break;
 			case "settings":
-				foreach (var key in new[] { "shell", "program", "theme", "layout", "toolbar", "glass", "mine" })
+				foreach (var key in new[] { "shell", "program", "theme", "layout", "toolbar", "glass", "mine", "commands" })
 					Preferences.Default.Set(key, Text(key));
 				break;
 			case "chrome":

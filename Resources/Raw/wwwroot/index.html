@@ -98,7 +98,7 @@
   #status { position: relative; }
   #status .dot { position: absolute; top: 3px; right: 3px; display: none; box-shadow: 0 0 0 2px var(--chrome); }
   #status .dot.running, #status .dot.waiting { display: block; }
-  body.claude-open #status, body.git-open #git, body.github-open #github { background: var(--surface); color: var(--accent); }
+  body.claude-open #status, body.git-open #git, body.github-open #github, body.commands-open #commands { background: var(--surface); color: var(--accent); }
   .running { --c: var(--green); } .waiting { --c: var(--yellow); } .failed, .error { --c: var(--red); }
   .done, .tool { --c: var(--blue); } .idle, .unknown, .stopped { --c: var(--muted); } .prompt { --c: var(--accent); } .system { --c: var(--yellow); }
   .dot { flex: none; width: 8px; height: 8px; border-radius: 50%; background: var(--c); }
@@ -106,7 +106,7 @@
   @keyframes pulse { 50% { opacity: .35; } }
 
   .panel { display: none; flex: none; flex-direction: column; width: 400px; min-height: 0; margin: 0 6px 6px 0; overflow: hidden; background: var(--bg); border: 1px solid var(--border); border-radius: 9px; }
-  body.claude-open #claude-panel, body.git-open #git-panel, body.github-open #github-panel { display: flex; }
+  body.claude-open #claude-panel, body.git-open #git-panel, body.github-open #github-panel, body.commands-open #commands-panel { display: flex; }
   .c-head { flex: none; display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 4px 0 12px; background: color-mix(in srgb, var(--surface) 45%, var(--bg)); }
   .c-head > .icon { color: var(--accent); }
   .c-head h2 { margin: 0; font-size: 13px; font-weight: 600; }
@@ -177,6 +177,21 @@
   .row .text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); }
   .row.prompt .text { color: var(--fg); }
   .row .num { flex: none; font: 11px "Cascadia Mono", Consolas, monospace; color: var(--muted); }
+  /* Commands panel: a grid of saved commands, and the form that adds or edits one */
+  .cmd-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+  .cmd { position: relative; min-width: 0; }
+  .cmd-run { width: 100%; min-height: 40px; padding: 8px 26px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid var(--border); border-radius: 8px; background: color-mix(in srgb, var(--surface) 30%, var(--bg)); font-weight: 600; }
+  .cmd-run:hover { border-color: var(--accent); background: var(--surface); }
+  .cmd-run:active { background: color-mix(in srgb, var(--accent) 20%, var(--surface)); }
+  .cmd-edit { position: absolute; top: 3px; right: 3px; width: 22px; height: 22px; opacity: 0; }
+  .cmd:hover .cmd-edit, .cmd-edit:focus-visible { opacity: 1; }
+  .cmd-edit .icon { width: 12px; height: 12px; }
+  #commands-add[hidden] { display: none; }
+  #commands-form { display: flex; flex-direction: column; }
+  #commands-form .field:first-of-type { margin-top: 0; }
+  #commands-form input:not(.mono) { font-family: inherit; }
+  #commands-form .dlg-foot { margin-top: 14px; }
+  #commands-form .dlg-foot .spacer { flex: 1; }
 
   /* Settings */
   dialog { width: 460px; max-width: calc(100vw - 32px); padding: 18px 20px 20px; border: 1px solid var(--border); border-radius: 14px; background: var(--chrome); color: var(--fg); box-shadow: 0 24px 60px rgb(0 0 0 / .5); }
@@ -250,6 +265,8 @@
   <symbol id="i-help" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><path d="M12 17h.01"/></symbol>
   <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 15V3"/><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><path d="m7 10 5 5 5-5"/></symbol>
   <symbol id="i-book" viewBox="0 0 24 24"><path d="M12 7v14"/><path d="M3 18a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1h5a4 4 0 0 1 4 4 4 4 0 0 1 4-4h5a1 1 0 0 1 1 1v13a1 1 0 0 1-1 1h-6a3 3 0 0 0-3 3 3 3 0 0 0-3-3z"/></symbol>
+  <symbol id="i-zap" viewBox="0 0 24 24"><path d="M4 14a1 1 0 0 1-.78-1.63l9.9-10.2a.5.5 0 0 1 .86.46l-1.92 6.02A1 1 0 0 0 13 10h7a1 1 0 0 1 .78 1.63l-9.9 10.2a.5.5 0 0 1-.86-.46l1.92-6.02A1 1 0 0 0 11 14z"/></symbol>
+  <symbol id="i-pencil" viewBox="0 0 24 24"><path d="M21.174 6.812a1 1 0 0 0-3.986-3.987L3.842 16.174a2 2 0 0 0-.5.83l-1.321 4.352a.5.5 0 0 0 .623.622l4.353-1.32a2 2 0 0 0 .83-.497z"/><path d="m15 5 4 4"/></symbol>
   <symbol id="i-settings" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></symbol>
 </svg>
 
@@ -269,6 +286,7 @@
     <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-claude"/></svg><span class="dot"></span></button>
     <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
     <button id="github" class="btn" data-tip="GitHub · pull requests and issues" aria-label="GitHub pull requests and issues"><svg class="icon"><use href="#i-github"/></svg></button>
+    <button id="commands" class="btn" data-tip="Commands · your saved commands as buttons" aria-label="Commands"><svg class="icon"><use href="#i-zap"/></svg></button>
     <button id="settings" class="btn" data-tip="Settings" aria-label="Settings"><svg class="icon"><use href="#i-settings"/></svg></button>
     <button id="help" class="btn" data-tip="About and help" aria-label="About and help"><svg class="icon"><use href="#i-help"/></svg></button>
   </div>
@@ -312,6 +330,16 @@
       <button role="radio" data-mine="1" title="Pull requests you opened or are assigned to, and issues assigned to you">Only mine</button>
     </div>
     <div id="github-body" class="panel-body"></div>
+  </aside>
+  <aside id="commands-panel" class="panel">
+    <div class="c-head">
+      <svg class="icon"><use href="#i-zap"/></svg>
+      <h2>Commands</h2>
+      <span id="commands-summary"></span>
+      <button id="commands-add" class="btn" title="Add a command" aria-label="Add a command"><svg class="icon"><use href="#i-plus"/></svg></button>
+      <button id="commands-close" class="btn" title="Close" aria-label="Close"><svg class="icon"><use href="#i-x"/></svg></button>
+    </div>
+    <div id="commands-body" class="panel-body"></div>
   </aside>
 </div>
 
@@ -465,7 +493,7 @@
   const terms = new Map(); // id -> { term, fit, pane, tab }
   let activeId = null;
   let lastFolder = ''; // where the "new terminal with options" dialog starts
-  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs', toolbar: 'right', glass: '0', mine: '0' };
+  let settings = { shell: '', program: '', theme: 'Catppuccin Mocha', layout: 'tabs', toolbar: 'right', glass: '0', mine: '0', commands: '[]' };
 
   const send = msg => window.HybridWebView.SendRawMessage(JSON.stringify(msg));
   const saveSettings = () => send({ t: 'settings', ...settings });
@@ -713,6 +741,8 @@
     setToolbar(settings.toolbar);
     setLayout(settings.layout);
     renderGitHub();
+    loadCommands();
+    renderCommands();
   }
 
   // ---- Claude status panel ----
@@ -941,27 +971,115 @@
       : '<div class="c-empty">No repositories. This lists the repositories that have a Claude session running in them.</div>');
   }
 
-  // ---- The side panel: Claude, Git or GitHub, one at a time ----
+  // ---- Commands panel: saved commands as buttons; a press types one into the active terminal ----
 
-  let panel = null; // 'claude', 'git', 'github' or null
+  let commands = [];    // { label, description, command }, kept in the settings as JSON
+  let editing = null;   // the index of the command in the form, -1 for a new one, or null while the grid shows
+
+  function loadCommands() {
+    try { commands = JSON.parse(settings.commands || '[]'); } catch { commands = []; }
+    if (!Array.isArray(commands)) commands = [];
+  }
+
+  function saveCommands() {
+    settings.commands = JSON.stringify(commands);
+    saveSettings();
+  }
+
+  function renderCommands() {
+    if (panel !== 'commands') return;
+    $('commands-summary').textContent = commands.length ? `${commands.length} saved` : '';
+    $('commands-add').hidden = editing !== null;
+    const body = $('commands-body');
+    if (editing !== null) {
+      const c = commands[editing] ?? { label: '', description: '', command: '' };
+      body.innerHTML = `<form id="commands-form">
+        <label class="field">Button label<input name="label" required spellcheck="false" autocomplete="off" value="${esc(c.label)}" placeholder="Build"></label>
+        <label class="field">Description<input name="description" spellcheck="false" autocomplete="off" value="${esc(c.description)}" placeholder="What it does, shown when you point at the button"></label>
+        <label class="field">Command<input name="command" class="mono" required spellcheck="false" autocomplete="off" value="${esc(c.command)}" placeholder="dotnet build -c Debug"></label>
+        <p class="hint">A press types the command into the active terminal and presses Enter.</p>
+        <div class="dlg-foot">
+          ${editing >= 0 ? '<button type="button" class="text-btn" data-act="delete">Delete</button>' : ''}
+          <span class="spacer"></span>
+          <button type="button" class="text-btn" data-act="cancel">Cancel</button>
+          <button type="submit" class="text-btn primary">Save</button>
+        </div>
+      </form>`;
+      body.querySelector('input').focus();
+      return;
+    }
+    rebuild(body, commands.length
+      ? '<div class="cmd-grid">' + commands.map((c, i) => {
+          const tip = (c.description ? c.description + '\n' : '') + c.command;
+          return `<div class="cmd"><button class="cmd-run" data-run="${i}" title="${esc(tip)}">${esc(c.label)}</button>`
+            + `<button class="btn cmd-edit" data-edit="${i}" title="Edit" aria-label="Edit ${esc(c.label)}">${icon('pencil')}</button></div>`;
+        }).join('') + '</div>'
+      : '<div class="c-empty">No commands yet. Add one with + to get a button for it here.</div>');
+  }
+
+  function editCommand(index) {
+    editing = index;
+    renderCommands();
+  }
+
+  function runCommand(c) {
+    if (terms.has(activeId)) {
+      send({ t: 'in', id: activeId, d: c.command + '\r' });
+      focusActive();
+    } else {
+      // No terminal to type into: a new one runs it.
+      send({ t: 'launch', shell: settings.shell, program: c.command, folder: lastFolder });
+    }
+  }
+
+  $('commands-add').onclick = () => editCommand(-1);
+  $('commands-body').onclick = e => {
+    const run = e.target.closest('[data-run]');
+    if (run) return runCommand(commands[run.dataset.run]);
+    const edit = e.target.closest('[data-edit]');
+    if (edit) return editCommand(Number(edit.dataset.edit));
+    const act = e.target.closest('[data-act]')?.dataset.act;
+    if (act === 'delete') { commands.splice(editing, 1); saveCommands(); }
+    if (act) editCommand(null);
+  };
+  $('commands-body').addEventListener('submit', e => {
+    e.preventDefault();
+    const form = new FormData(e.target);
+    const c = { label: form.get('label').trim(), description: form.get('description').trim(), command: form.get('command').trim() };
+    if (!c.label || !c.command) return;
+    if (editing >= 0) commands[editing] = c; else commands.push(c);
+    saveCommands();
+    editCommand(null);
+  });
+  $('commands-body').addEventListener('keydown', e => {
+    if (e.key === 'Escape' && editing !== null) { e.stopPropagation(); editCommand(null); }
+  });
+
+  // ---- The side panel: Claude, Git, GitHub or Commands, one at a time ----
+
+  let panel = null; // 'claude', 'git', 'github', 'commands' or null
 
   function showPanel(name) {
     panel = panel === name ? null : name;
     document.body.classList.toggle('claude-open', panel === 'claude');
     document.body.classList.toggle('git-open', panel === 'git');
     document.body.classList.toggle('github-open', panel === 'github');
+    document.body.classList.toggle('commands-open', panel === 'commands');
     send({ t: 'git', open: panel === 'git' }); // git is only asked while its panel is open
     send({ t: 'github', open: panel === 'github' }); // and so is GitHub
     renderClaude();
     renderGit();
     renderGitHub();
+    editing = null;
+    renderCommands();
     focusActive();
   }
 
   $('status').onclick = () => showPanel('claude');
   $('git').onclick = () => showPanel('git');
   $('github').onclick = () => showPanel('github');
-  $('claude-close').onclick = $('git-close').onclick = $('github-close').onclick = () => showPanel(panel);
+  $('commands').onclick = () => showPanel('commands');
+  $('claude-close').onclick = $('git-close').onclick = $('github-close').onclick = $('commands-close').onclick = () => showPanel(panel);
   $('github-filter').onclick = e => {
     const button = e.target.closest('button');
     if (!button) return;
