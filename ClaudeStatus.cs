@@ -112,7 +112,7 @@ public sealed partial class ClaudeStatus
 	{
 		public int Pid;
 		public int? Terminal;
-		public string? Id, Name, Title, Claim, Cwd, Model, WaitingFor, Version, Kind, Host, Remote;
+		public string? Id, Name, Title, Summary, Claim, Cwd, Model, WaitingFor, Version, Kind, Host, Remote;
 		public string Status = "unknown";
 		public long? Started, Last;
 		public long Tokens;
@@ -131,6 +131,7 @@ public sealed partial class ClaudeStatus
 			["id"] = Id,
 			["title"] = Title ?? Name,
 			["claim"] = Claim,
+			["summary"] = Summary,
 			["cwd"] = Cwd,
 			["status"] = Status,
 			["waitingFor"] = WaitingFor,
@@ -198,6 +199,8 @@ public sealed partial class ClaudeStatus
 		if (state is not null)
 		{
 			session.Title = OneLine(state.CustomTitle ?? state.AiTitle ?? state.LastPrompt, 80);
+			// Claude's own one-line title says what the session is about, when the name is a custom one such as "Issue 1534".
+			session.Summary = state.CustomTitle is null ? null : OneLine(state.AiTitle, SummaryLimit);
 			session.Model = state.Model;
 			session.Tokens = state.Tokens;
 			session.Last = ParseTime(state.LastTimestamp) ?? session.Last;

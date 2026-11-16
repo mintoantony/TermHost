@@ -346,11 +346,10 @@
     border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--c) 25%, transparent); transition: transform .2s, box-shadow .2s; }
   .dnode:hover .dcard, .dnode:focus-visible .dcard { transform: translateY(-3px); box-shadow: 0 0 30px color-mix(in srgb, var(--c) 60%, transparent); }
   .dnode:focus-visible { box-shadow: none; outline: none; }
-  .dcard .top { display: flex; align-items: center; gap: 6px; }
   .dcard .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #fff; }
-  .dcard .state { flex: none; font: 9px "Cascadia Mono", Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--c); }
-  .dcard .claim { margin-top: 4px; font-size: 11px; color: var(--amber); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
-  .dcard .meta { margin-top: 4px; font: 10px "Cascadia Mono", Consolas, monospace; color: rgba(223, 246, 255, .6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dcard .name { display: block; color: var(--c); }
+  .dcard .doing { margin-top: 4px; font-size: 11px; line-height: 1.35; color: rgba(223, 246, 255, .8); display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
+  .dash-hud div.reset { display: block; font-size: 10px; line-height: 1.4; color: rgba(223, 246, 255, .6); }
   #dash-empty { position: absolute; left: 0; right: 0; top: calc(50% + 170px); text-align: center; color: rgba(223, 246, 255, .6); }
   @media (prefers-reduced-motion: reduce) { #dash, #dash *, #dash *::before, #dash *::after, #dash::before, #dash::after { animation: none !important; transition: none !important; } }
   #dash-nodes { position: absolute; inset: 0; pointer-events: none; }
@@ -1326,8 +1325,11 @@
       ['Idle', count('idle')], ['Claimed tasks', sessions.filter(s => s.claim).length], ['Tokens', tokens(total)]].map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
     const usage = claude?.usage;
     $('dash-usage').innerHTML = !usage ? '' : '<h3>PLAN USAGE</h3>' + usage.windows.map(w => {
-      const percent = w.resets && w.resets <= Date.now() ? 0 : Math.min(100, Math.round(w.percent));
-      return `<div>${esc(w.label)}<b>${percent}%</b></div><div class="dash-bar"><i style="width:${percent}%"></i></div>`;
+      // The reset time only when Claude Code gave one and it is still ahead; past it, the figure belongs to the window before.
+      const over = w.resets && w.resets <= Date.now();
+      const percent = over ? 0 : Math.min(100, Math.round(w.percent));
+      const reset = w.resets && !over ? `<div class="reset">resets ${when(w.resets)} · in ${countdown(w.resets)}</div>` : '';
+      return `<div>${esc(w.label)}<b>${percent}%</b></div>${reset}<div class="dash-bar"><i style="width:${percent}%"></i></div>`;
     }).join('');
     $('dash-sub').textContent = claude ? `${plural(sessions.length, 'session').toUpperCase()} · ${count('running')} RUNNING` : 'READING SESSIONS…';
     $('dash-empty').textContent = claude && !sessions.length ? 'No Claude sessions are running.' : '';
@@ -1356,13 +1358,13 @@
       const angle = Math.PI + i * 2 * Math.PI / sessions.length;
       const spot = dashSpots.get(s.key);
       placeNode(node, wire, spot ? spot[0] * w : cx + Math.cos(angle) * w * .36, spot ? spot[1] * h : cy + Math.sin(angle) * h * .33);
-      const here = terms.get(s.terminal);
-      const where = here ? here.tab.querySelector('span').textContent : s.host ? 'External · ' + s.host : 'External';
-      node.setAttribute('aria-label', `${s.title || 'Session ' + s.pid}, ${STATUS[s.status] ?? s.status}. Open it.`);
-      node.querySelector('.dcard').innerHTML = `<div class="top"><span class="name">${esc(s.title || s.repo || s.cwd || 'Session ' + s.pid)}</span><span class="state">${esc(STATUS[s.status] ?? s.status)}</span></div>
-        ${s.claim ? `<div class="claim" title="${esc(s.claim)}">${esc(s.claim)}</div>` : ''}
-        <div class="meta">${esc([s.repo && s.repo + (s.branch ? ' · ' + s.branch : ''), s.model?.replace(/^claude-/, '')].filter(Boolean).join(' · '))}</div>
-        <div class="meta">${esc([where, s.tokens && tokens(s.tokens) + ' tokens', s.agentsRunning && s.agentsRunning + ' agents running', ago(s.last)].filter(Boolean).join(' · '))}</div>`;
+      // Only the name and what it is doing: its super-boss claim, else Claude's own title, else its latest step.
+      // The status shows in the colour, and the rest is one click away in the Claude panel.
+      const name = s.title || s.repo || s.cwd || 'Session ' + s.pid;
+      const doing = (s.claim?.startsWith(name + ':') ? s.claim.slice(name.length + 1).trim() : s.claim)
+        || s.summary || s.activity.at(-1)?.text || '';
+      node.setAttribute('aria-label', `${name}, ${STATUS[s.status] ?? s.status}${doing ? ': ' + doing : ''}. Open it.`);
+      node.querySelector('.dcard').innerHTML = `<div class="name">${esc(name)}</div>${doing ? `<div class="doing" title="${esc(doing)}">${esc(doing)}</div>` : ''}`;
     });
   }
 
