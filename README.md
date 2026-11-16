@@ -78,6 +78,7 @@ or to the top. Hover over an icon for its name.
 | Tabs / tiles / row | Chooses the layout: tabs, a grid of all terminals, or all terminals side by side in a single row. In the grid and the row, drag the gaps to resize. |
 | List with a play mark | Opens **Run a plan**. |
 | Robot | Opens the Claude panel. A dot on the icon is green while a session is running and yellow while one waits for you. |
+| Hub | Opens the **Dashboard**: every Claude session on this PC, wired to super-boss in the middle. |
 | Branch | Opens the Git panel. |
 | GitHub mark | Opens the GitHub panel. |
 | Lightning bolt | Opens the Commands panel. |
@@ -103,6 +104,15 @@ brings the window it runs in to the front, when that window can be found (Window
 Terminal, Visual Studio Code or another TermHost window, but not a classic console
 window). It switches to the window, not to a tab inside it. A session with Remote
 Control on shows a **Remote Control** link that opens it in the browser.
+
+**Dashboard:** a full-window view of every Claude session on this PC around a super-boss
+robot. Each session's colour shows its status (cyan running, amber waiting, violet idle,
+red error), and its card shows what it told super-boss it is handling (`boss.mjs claim`),
+its repository, model and tokens. Click a session to open it the way the Claude panel
+does: its card opens and its terminal or window comes to the front. Drag a session to move it; its wire follows.
+Click the robot in the middle for a **Super Boss** tab: a Claude session that sums up every
+other session and says which need you. A second click goes back to that tab while it is
+open. Esc closes the dashboard.
 
 **Git panel:** click a worktree to see its path, upstream, last commit and its files:
 the uncommitted ones, and the ones in commits not yet pushed. Click a file to open its

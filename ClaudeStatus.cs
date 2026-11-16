@@ -32,6 +32,7 @@ public sealed partial class ClaudeStatus
 	private static partial Regex SessionIdPattern();
 
 	readonly string _sessionsDir;
+	readonly string _claimsDir;
 	readonly string _projectsDir;
 	readonly Dictionary<string, Transcript> _transcripts = new();
 	readonly Dictionary<string, string> _transcriptPaths = new();
@@ -48,6 +49,7 @@ public sealed partial class ClaudeStatus
 			home = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".claude");
 		_sessionsDir = Path.Combine(home, "sessions");
 		_projectsDir = Path.Combine(home, "projects");
+		_claimsDir = Path.Combine(home, "super-boss", "data", "tasks");
 	}
 
 	/// <summary>Everything the status panel shows, as the JSON message sent to the web view.</summary>
@@ -110,7 +112,7 @@ public sealed partial class ClaudeStatus
 	{
 		public int Pid;
 		public int? Terminal;
-		public string? Id, Name, Title, Cwd, Model, WaitingFor, Version, Kind, Host, Remote;
+		public string? Id, Name, Title, Claim, Cwd, Model, WaitingFor, Version, Kind, Host, Remote;
 		public string Status = "unknown";
 		public long? Started, Last;
 		public long Tokens;
@@ -128,6 +130,7 @@ public sealed partial class ClaudeStatus
 			["remote"] = Remote,
 			["id"] = Id,
 			["title"] = Title ?? Name,
+			["claim"] = Claim,
 			["cwd"] = Cwd,
 			["status"] = Status,
 			["waitingFor"] = WaitingFor,
@@ -200,6 +203,7 @@ public sealed partial class ClaudeStatus
 			session.Last = ParseTime(state.LastTimestamp) ?? session.Last;
 		}
 		session.Status = DeriveStatus(Text(raw, "status"), state, modified, now);
+		session.Claim = ReadClaim(session.Id);
 		session.Git = session.Cwd is null ? null : DetectGit(session.Cwd, state?.GitBranch, now);
 
 		if (transcript is not null)
@@ -208,6 +212,25 @@ public sealed partial class ClaudeStatus
 			session.Activity = ReadActivity(transcript, session.Cwd);
 		}
 		return session;
+	}
+
+	// What the session told super-boss it is handling (boss.mjs claim), if super-boss is installed.
+	string? ReadClaim(string? id)
+	{
+		if (id is null || !SessionIdPattern().IsMatch(id))
+			return null;
+		var file = Path.Combine(_claimsDir, id + ".json");
+		if (!File.Exists(file))
+			return null;
+		try
+		{
+			using var doc = JsonDocument.Parse(File.ReadAllBytes(file));
+			return OneLine(Text(doc.RootElement, "task"), SummaryLimit);
+		}
+		catch (Exception e) when (e is IOException or UnauthorizedAccessException or JsonException)
+		{
+			return null;
+		}
 	}
 
 	// The address of a session that has Remote Control on, for opening it in a browser or sharing it.

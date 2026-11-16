@@ -242,6 +242,119 @@
   .swatch.selected { border-color: var(--accent); }
   .swatch i { display: flex; gap: 3px; }
   .swatch b { width: 9px; height: 9px; border-radius: 50%; }
+  /* Dashboard: every Claude session wired to super-boss, over the whole window */
+  #dash {
+    --cyan: #3ef0ff; --amber: #ffb547; --violet: #a78bfa; --red: #ff5c7a; --blue: #6aa8ff; --claude: #e07a5f;
+    position: fixed; inset: 0; z-index: 50; display: none; overflow: hidden; color: #dff6ff;
+    background:
+      radial-gradient(ellipse at 50% 45%, rgba(62, 240, 255, .16), transparent 55%),
+      radial-gradient(ellipse at 15% 85%, rgba(224, 122, 95, .14), transparent 45%),
+      radial-gradient(ellipse at 85% 80%, rgba(167, 139, 250, .16), transparent 45%),
+      #050b18;
+  }
+  body.dash-open #dash { display: block; animation: dash-in .45s ease-out; }
+  @keyframes dash-in { from { opacity: 0; transform: scale(1.03); } }
+  #dash::before { /* the perspective grid floor */
+    content: ""; position: absolute; left: -50%; right: -50%; bottom: -10%; height: 60%;
+    background: repeating-linear-gradient(90deg, rgba(62, 240, 255, .14) 0 1px, transparent 1px 60px),
+      repeating-linear-gradient(0deg, rgba(62, 240, 255, .14) 0 1px, transparent 1px 60px);
+    transform: perspective(500px) rotateX(62deg); transform-origin: bottom;
+    mask-image: linear-gradient(to top, #000, transparent 85%); animation: dash-floor 6s linear infinite;
+  }
+  @keyframes dash-floor { to { background-position: 0 60px, 0 60px; } }
+  #dash::after { /* the stars */
+    content: ""; position: absolute; inset: 0; pointer-events: none; opacity: .6;
+    background-image: radial-gradient(1px 1px at 10% 20%, #fff, transparent), radial-gradient(1px 1px at 30% 70%, #9ff, transparent),
+      radial-gradient(1.5px 1.5px at 70% 15%, #fff, transparent), radial-gradient(1px 1px at 85% 55%, #c9b8ff, transparent),
+      radial-gradient(1px 1px at 55% 88%, #fff, transparent), radial-gradient(1.5px 1.5px at 20% 45%, #ffd2c2, transparent);
+    animation: dash-twinkle 4s ease-in-out infinite alternate;
+  }
+  @keyframes dash-twinkle { to { opacity: .2; } }
+  #dash-close { position: absolute; top: 14px; right: 14px; z-index: 3; color: #9fdfff; }
+  #dash-close:hover { background: rgba(62, 240, 255, .15); color: #fff; }
+  .dash-hud { position: absolute; top: 14px; z-index: 2; min-width: 190px; padding: 10px 12px; border: 1px solid rgba(62, 240, 255, .35); border-radius: 10px;
+    background: rgba(8, 22, 40, .7); backdrop-filter: blur(6px); font: 11px "Cascadia Mono", Consolas, monospace; box-shadow: 0 0 24px rgba(62, 240, 255, .12) inset; }
+  .dash-hud h3 { margin: 0 0 6px; font-size: 10px; letter-spacing: .18em; color: var(--cyan); }
+  .dash-hud div { display: flex; justify-content: space-between; gap: 18px; line-height: 1.7; }
+  .dash-hud b { color: #fff; font-weight: 600; }
+  #dash-telemetry { left: 14px; }
+  #dash-usage { right: 60px; }
+  #dash-usage:empty { display: none; }
+  .dash-hud .dash-bar { display: block; height: 4px; margin: 1px 0 6px; border-radius: 2px; background: rgba(255, 255, 255, .1); overflow: hidden; }
+  .dash-bar i { display: block; height: 100%; background: linear-gradient(90deg, var(--cyan), var(--violet)); box-shadow: 0 0 8px var(--cyan); }
+  #dash-hint { position: absolute; bottom: 12px; left: 0; right: 0; z-index: 2; text-align: center; font-size: 11px; letter-spacing: .08em; color: rgba(223, 246, 255, .55); }
+
+  #dash-stage { position: absolute; inset: 0; }
+  #dash-wires { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+  #dash-wires g { color: var(--blue); filter: drop-shadow(0 0 4px currentColor); }
+  #dash-wires .running { color: var(--cyan); } #dash-wires .waiting { color: var(--amber); }
+  #dash-wires .idle { color: var(--violet); } #dash-wires .failed { color: var(--red); }
+  #dash-wires path { fill: none; stroke: currentColor; }
+  #dash-wires .base { stroke-width: 1.5; opacity: .35; }
+  #dash-wires .flow { stroke-width: 2.5; stroke-dasharray: 3 15; animation: dash-flow 1s linear infinite; }
+  #dash-wires .idle .flow { animation-duration: 4s; opacity: .5; }
+  #dash-wires circle { fill: #fff; }
+  #dash-wires g:not(.running) circle { display: none; }
+  @keyframes dash-flow { to { stroke-dashoffset: -18; } }
+
+  /* super-boss in the middle: a robot face with Claude's starburst for hair, inside spinning orbits */
+  #dash-core { position: absolute; left: 50%; top: 50%; width: 240px; height: 240px; transform: translate(-50%, -50%); z-index: 1; perspective: 600px; text-align: center; }
+  #dash-core { cursor: pointer; outline: none; }
+  #dash-core:hover svg, #dash-core:focus-visible svg { filter: drop-shadow(0 0 26px rgba(62, 240, 255, .9)); }
+  #dash-core .sweep { position: absolute; inset: -60px; border-radius: 50%; animation: dash-spin 5s linear infinite;
+    background: conic-gradient(from 0deg, transparent 0 300deg, rgba(62, 240, 255, .28) 360deg); mask-image: radial-gradient(circle, transparent 38%, #000 40%, #000 70%, transparent 71%); }
+  #dash-core .ring { position: absolute; inset: 0; border-radius: 50%; border: 2px solid; }
+  #dash-core .r1 { border-color: rgba(62, 240, 255, .8) transparent; animation: dash-orbit1 7s linear infinite; box-shadow: 0 0 18px rgba(62, 240, 255, .5); }
+  #dash-core .r2 { inset: -18px; border-color: rgba(255, 181, 71, .8) transparent rgba(255, 181, 71, .2); animation: dash-orbit2 11s linear infinite; }
+  #dash-core .r3 { inset: -36px; border-color: transparent rgba(167, 139, 250, .8); animation: dash-orbit3 15s linear infinite; }
+  @keyframes dash-spin { to { transform: rotate(360deg); } }
+  @keyframes dash-orbit1 { from { transform: rotateX(68deg) rotateZ(0); } to { transform: rotateX(68deg) rotateZ(360deg); } }
+  @keyframes dash-orbit2 { from { transform: rotateY(64deg) rotateZ(0); } to { transform: rotateY(64deg) rotateZ(-360deg); } }
+  @keyframes dash-orbit3 { from { transform: rotateX(50deg) rotateY(40deg) rotateZ(0); } to { transform: rotateX(50deg) rotateY(40deg) rotateZ(360deg); } }
+  #dash-core svg { position: absolute; left: 0; top: -20px; width: 240px; height: 240px; filter: drop-shadow(0 0 14px rgba(62, 240, 255, .55)); animation: dash-float 4s ease-in-out infinite; }
+  @keyframes dash-float { 50% { transform: translateY(-6px); } }
+  #dash-core .hair { transform-origin: 100px 80px; animation: dash-sway 3s ease-in-out infinite; filter: drop-shadow(0 0 6px var(--claude)); }
+  @keyframes dash-sway { 0%, 100% { transform: rotate(-4deg); } 50% { transform: rotate(4deg); } }
+  #dash-core .eye { transform-box: fill-box; transform-origin: center; animation: dash-blink 5s infinite; }
+  @keyframes dash-blink { 0%, 92%, 100% { transform: scaleY(1); } 95% { transform: scaleY(.1); } }
+  #dash-core .bar { transform-box: fill-box; transform-origin: center; animation: dash-talk .9s ease-in-out infinite alternate; }
+  #dash-core .bar:nth-child(2) { animation-delay: -.3s; } #dash-core .bar:nth-child(3) { animation-delay: -.6s; }
+  #dash-core .bar:nth-child(4) { animation-delay: -.15s; } #dash-core .bar:nth-child(5) { animation-delay: -.45s; }
+  @keyframes dash-talk { from { transform: scaleY(.3); } }
+  #dash-core .ear { animation: dash-glow 1.6s ease-in-out infinite alternate; }
+  @keyframes dash-glow { from { opacity: .35; } }
+  #dash-core p { position: absolute; left: -80px; right: -80px; bottom: -6px; margin: 0; font: 10px "Cascadia Mono", Consolas, monospace; letter-spacing: .2em; color: var(--cyan); }
+
+  /* a session: Claude's starburst in a status-coloured ring, its card below */
+  .dnode { position: absolute; z-index: 2; display: flex; flex-direction: column; align-items: center; gap: 8px; width: 210px; transform: translate(-50%, -32px);
+    transition: left .6s, top .6s; --c: var(--blue); animation: dash-pop .5s backwards; cursor: grab; touch-action: none; user-select: none; }
+  .dnode.dragging { transition: none; cursor: grabbing; z-index: 3; }
+  .dnode.dragging .dcard { transform: scale(1.04); }
+  .dnode.running { --c: var(--cyan); } .dnode.waiting { --c: var(--amber); } .dnode.idle { --c: var(--violet); } .dnode.failed { --c: var(--red); }
+  @keyframes dash-pop { from { opacity: 0; transform: translate(-50%, -32px) scale(.4); } }
+  .dbadge { position: relative; width: 64px; height: 64px; border-radius: 50%; display: grid; place-items: center; }
+  .dbadge::before { content: ""; position: absolute; inset: 0; border-radius: 50%; padding: 3px; animation: dash-spin 3s linear infinite;
+    background: conic-gradient(var(--c), transparent 40%, var(--c) 60%, transparent); mask: linear-gradient(#000 0 0) content-box exclude, linear-gradient(#000 0 0); }
+  .dbadge::after { content: ""; position: absolute; inset: -6px; border-radius: 50%; border: 1px solid var(--c); opacity: .4; }
+  .dnode.waiting .dbadge::after { animation: dash-ripple 1.4s ease-out infinite; }
+  @keyframes dash-ripple { from { transform: scale(.9); opacity: .9; } to { transform: scale(1.6); opacity: 0; } }
+  .dbadge span { width: 50px; height: 50px; border-radius: 50%; display: grid; place-items: center; background: radial-gradient(circle, #1a2140, #0a1022); box-shadow: 0 0 22px var(--c), 0 0 8px var(--c) inset; }
+  .dbadge svg { width: 30px; height: 30px; fill: none; stroke: var(--claude); stroke-width: 2.4; stroke-linecap: round; filter: drop-shadow(0 0 4px var(--claude)); }
+  .dnode.running .dbadge svg { animation: dash-spin 6s linear infinite; }
+  .dnode.waiting .dbadge svg { animation: dash-glow .8s ease-in-out infinite alternate; }
+  .dcard { width: 100%; padding: 8px 10px; border-radius: 10px; text-align: left; background: rgba(8, 20, 38, .82); backdrop-filter: blur(6px);
+    border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 0 18px color-mix(in srgb, var(--c) 25%, transparent); transition: transform .2s, box-shadow .2s; }
+  .dnode:hover .dcard, .dnode:focus-visible .dcard { transform: translateY(-3px); box-shadow: 0 0 30px color-mix(in srgb, var(--c) 60%, transparent); }
+  .dnode:focus-visible { box-shadow: none; outline: none; }
+  .dcard .top { display: flex; align-items: center; gap: 6px; }
+  .dcard .name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: 600; color: #fff; }
+  .dcard .state { flex: none; font: 9px "Cascadia Mono", Consolas, monospace; letter-spacing: .12em; text-transform: uppercase; color: var(--c); }
+  .dcard .claim { margin-top: 4px; font-size: 11px; color: var(--amber); display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+  .dcard .meta { margin-top: 4px; font: 10px "Cascadia Mono", Consolas, monospace; color: rgba(223, 246, 255, .6); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  #dash-empty { position: absolute; left: 0; right: 0; top: calc(50% + 170px); text-align: center; color: rgba(223, 246, 255, .6); }
+  @media (prefers-reduced-motion: reduce) { #dash, #dash *, #dash *::before, #dash *::after, #dash::before, #dash::after { animation: none !important; transition: none !important; } }
+  #dash-nodes { position: absolute; inset: 0; pointer-events: none; }
+  #dash-nodes .dnode { pointer-events: auto; }
 </style>
 </head>
 <body class="tabs side">
@@ -256,6 +369,7 @@
   <symbol id="i-row" viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M9 3v18"/><path d="M15 3v18"/></symbol>
   <symbol id="i-grid" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></symbol>
   <symbol id="i-claude" viewBox="0 0 24 24"><path d="M12 12 22 12M12 12 19.5 16M12 12 16.5 20.4M12 12 12 22M12 12 7.8 19.4M12 12 3.6 16.5M12 12 2 12M12 12 4.2 7.5M12 12 7.5 3.6M12 12 12 2M12 12 16.2 4.6M12 12 20.4 7.5"/></symbol>
+  <symbol id="i-hub" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><circle cx="4" cy="5" r="2"/><circle cx="20" cy="5" r="2"/><circle cx="4" cy="19" r="2"/><circle cx="20" cy="19" r="2"/><path d="m5.5 6.5 4.2 3.7M18.5 6.5l-4.2 3.7M5.5 17.5l4.2-3.7M18.5 17.5l-4.2-3.7"/></symbol>
   <symbol id="i-bot" viewBox="0 0 24 24"><path d="M12 8V4H8"/><rect x="4" y="8" width="16" height="12" rx="2"/><path d="M2 14h2"/><path d="M20 14h2"/><path d="M15 13v2"/><path d="M9 13v2"/></symbol>
   <symbol id="i-activity" viewBox="0 0 24 24"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></symbol>
   <symbol id="i-branch" viewBox="0 0 24 24"><path d="M6 3v12"/><circle cx="18" cy="6" r="3"/><circle cx="6" cy="18" r="3"/><path d="M18 9a9 9 0 0 1-9 9"/></symbol>
@@ -291,6 +405,7 @@
     </div>
     <button id="run-plan" class="btn" data-tip="Run a plan · its tasks in parallel" aria-label="Run a plan"><svg class="icon"><use href="#i-plan"/></svg></button>
     <button id="status" class="btn" data-tip="Claude status" aria-label="Claude status"><svg class="icon"><use href="#i-claude"/></svg><span class="dot"></span></button>
+    <button id="dashboard" class="btn" data-tip="Dashboard · every Claude session and super-boss" aria-label="Dashboard"><svg class="icon"><use href="#i-hub"/></svg></button>
     <button id="git" class="btn" data-tip="Git" aria-label="Git"><svg class="icon"><use href="#i-branch"/></svg></button>
     <button id="github" class="btn" data-tip="GitHub · pull requests and issues" aria-label="GitHub pull requests and issues"><svg class="icon"><use href="#i-github"/></svg></button>
     <button id="commands" class="btn" data-tip="Commands · your saved commands as buttons" aria-label="Commands"><svg class="icon"><use href="#i-zap"/></svg></button>
@@ -468,6 +583,34 @@
     <button id="quit-ok" class="text-btn primary">Close</button>
   </div>
 </dialog>
+
+<section id="dash" tabindex="-1" aria-label="Claude sessions dashboard">
+  <button id="dash-close" class="btn" title="Close · Esc" aria-label="Close the dashboard"><svg class="icon"><use href="#i-x"/></svg></button>
+  <div id="dash-telemetry" class="dash-hud"></div>
+  <div id="dash-usage" class="dash-hud"></div>
+  <div id="dash-stage">
+    <svg id="dash-wires"></svg>
+    <div id="dash-core" role="button" tabindex="0" aria-label="Super Boss: open a Claude session that sums up the other sessions" title="Open a Claude session that sums up the other sessions">
+      <div class="sweep"></div><div class="ring r3"></div><div class="ring r2"></div><div class="ring r1"></div>
+      <svg viewBox="0 0 200 200" aria-hidden="true">
+        <defs>
+          <linearGradient id="dash-head" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#26345e"/><stop offset="1" stop-color="#0b1330"/></linearGradient>
+        </defs>
+        <!-- Claude's starburst as hair; the head hides its lower half -->
+        <use class="hair" href="#i-claude" x="40" y="12" width="120" height="120" stroke="#e07a5f" stroke-width="2.6" fill="none" stroke-linecap="round"/>
+        <circle class="ear" cx="36" cy="118" r="9" fill="#3ef0ff"/><circle class="ear" cx="164" cy="118" r="9" fill="#3ef0ff"/>
+        <rect x="42" y="68" width="116" height="100" rx="32" fill="url(#dash-head)" stroke="#3ef0ff" stroke-width="2.5"/>
+        <rect x="56" y="92" width="88" height="36" rx="18" fill="#04101f" stroke="rgba(62,240,255,.5)"/>
+        <ellipse class="eye" cx="80" cy="110" rx="9" ry="10" fill="#3ef0ff"/><ellipse class="eye" cx="120" cy="110" rx="9" ry="10" fill="#3ef0ff"/>
+        <g fill="#ffb547"><rect class="bar" x="82" y="140" width="5" height="14" rx="2"/><rect class="bar" x="90" y="140" width="5" height="14" rx="2"/><rect class="bar" x="98" y="140" width="5" height="14" rx="2"/><rect class="bar" x="106" y="140" width="5" height="14" rx="2"/><rect class="bar" x="114" y="140" width="5" height="14" rx="2"/></g>
+      </svg>
+      <p id="dash-sub"></p>
+    </div>
+    <div id="dash-nodes"></div>
+    <div id="dash-empty"></div>
+  </div>
+  <div id="dash-hint">Click a session to open it · click the robot for a summary of every session · Esc to close</div>
+</section>
 
 <script src="_framework/hybridwebview.js"></script>
 <script src="xterm.js"></script>
@@ -1155,16 +1298,148 @@
     openSession = openSession === top.dataset.key ? null : top.dataset.key;
     renderClaude();
     const session = claude.sessions.find(s => s.key === top.dataset.key);
-    if (terms.has(session?.terminal)) {
+    // Opening an external session also switches to its window; closing the card stays here.
+    if (session && (terms.has(session.terminal) || openSession === session.key)) goToSession(session);
+  };
+  function goToSession(session) {
+    if (terms.has(session.terminal)) {
       activate(session.terminal);
       terms.get(session.terminal).tab.scrollIntoView();
       focusActive();
-    } else if (session?.host && openSession === session.key) {
-      // Opening an external session also switches to its window; closing the card stays here.
-      send({ t: 'focus', pid: session.pid });
+    } else if (session.host) send({ t: 'focus', pid: session.pid });
+  }
+
+  // ---- Dashboard: every Claude session on this PC, wired to super-boss in the middle ----
+
+  function showDash(open) {
+    document.body.classList.toggle('dash-open', open);
+    if (open) { renderDash(); $('dash').focus(); } else focusActive();
+  }
+
+  // Each session keeps its own elements between status messages, so its animations do not restart.
+  function renderDash() {
+    if (!document.body.classList.contains('dash-open')) return;
+    const sessions = claude?.sessions ?? [];
+    const count = status => sessions.filter(s => s.status === status).length;
+    const total = sessions.reduce((sum, s) => sum + s.tokens, 0);
+    $('dash-telemetry').innerHTML = '<h3>TELEMETRY</h3>' + [['Sessions', sessions.length], ['Running', count('running')], ['Waiting', count('waiting')],
+      ['Idle', count('idle')], ['Claimed tasks', sessions.filter(s => s.claim).length], ['Tokens', tokens(total)]].map(([k, v]) => `<div>${k}<b>${v}</b></div>`).join('');
+    const usage = claude?.usage;
+    $('dash-usage').innerHTML = !usage ? '' : '<h3>PLAN USAGE</h3>' + usage.windows.map(w => {
+      const percent = w.resets && w.resets <= Date.now() ? 0 : Math.min(100, Math.round(w.percent));
+      return `<div>${esc(w.label)}<b>${percent}%</b></div><div class="dash-bar"><i style="width:${percent}%"></i></div>`;
+    }).join('');
+    $('dash-sub').textContent = claude ? `${plural(sessions.length, 'session').toUpperCase()} · ${count('running')} RUNNING` : 'READING SESSIONS…';
+    $('dash-empty').textContent = claude && !sessions.length ? 'No Claude sessions are running.' : '';
+
+    const nodes = $('dash-nodes'), wires = $('dash-wires');
+    const keys = new Set(sessions.map(s => s.key));
+    for (const el of [...nodes.children, ...wires.children]) if (!keys.has(el.dataset.key)) el.remove();
+    const w = nodes.clientWidth, h = nodes.clientHeight, cx = w / 2, cy = h / 2;
+    sessions.forEach((s, i) => {
+      let node = nodes.querySelector(`[data-key="${s.key}"]`), wire = wires.querySelector(`[data-key="${s.key}"]`);
+      if (!node) {
+        node = document.createElement('button');
+        node.dataset.key = s.key;
+        node.innerHTML = '<div class="dbadge"><span><svg viewBox="0 0 24 24"><use href="#i-claude"/></svg></span></div><div class="dcard"></div>';
+        nodes.append(node);
+        wire = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        wire.dataset.key = s.key;
+        wire.innerHTML = `<path class="base" id="dash-w${s.key}"/><path class="flow"/><circle r="3"><animateMotion dur="2.2s" repeatCount="indefinite"><mpath href="#dash-w${s.key}"/></animateMotion></circle>`;
+        wires.append(wire);
+      }
+      node.className = 'dnode ' + s.status;
+      wire.setAttribute('class', s.status);
+      // Around an ellipse, starting on the left; the card hangs below the badge.
+      // shortcut: past ~12 sessions the cards overlap; switch to a second ring when that happens.
+      // A node dragged by hand keeps its spot, kept as a fraction of the stage so a resize keeps it in view.
+      const angle = Math.PI + i * 2 * Math.PI / sessions.length;
+      const spot = dashSpots.get(s.key);
+      placeNode(node, wire, spot ? spot[0] * w : cx + Math.cos(angle) * w * .36, spot ? spot[1] * h : cy + Math.sin(angle) * h * .33);
+      const here = terms.get(s.terminal);
+      const where = here ? here.tab.querySelector('span').textContent : s.host ? 'External · ' + s.host : 'External';
+      node.setAttribute('aria-label', `${s.title || 'Session ' + s.pid}, ${STATUS[s.status] ?? s.status}. Open it.`);
+      node.querySelector('.dcard').innerHTML = `<div class="top"><span class="name">${esc(s.title || s.repo || s.cwd || 'Session ' + s.pid)}</span><span class="state">${esc(STATUS[s.status] ?? s.status)}</span></div>
+        ${s.claim ? `<div class="claim" title="${esc(s.claim)}">${esc(s.claim)}</div>` : ''}
+        <div class="meta">${esc([s.repo && s.repo + (s.branch ? ' · ' + s.branch : ''), s.model?.replace(/^claude-/, '')].filter(Boolean).join(' · '))}</div>
+        <div class="meta">${esc([where, s.tokens && tokens(s.tokens) + ' tokens', s.agentsRunning && s.agentsRunning + ' agents running', ago(s.last)].filter(Boolean).join(' · '))}</div>`;
+    });
+  }
+
+  const dashSpots = new Map(); // session key -> [x, y] as fractions of the stage, for nodes moved by hand
+
+  function placeNode(node, wire, x, y) {
+    const stage = $('dash-nodes'), cx = stage.clientWidth / 2, cy = stage.clientHeight / 2;
+    node.style.left = x + 'px';
+    node.style.top = y + 'px';
+    const d = `M${cx},${cy} Q${(cx + x) / 2 + (y - cy) * .3},${(cy + y) / 2 - (x - cx) * .3} ${x},${y}`;
+    for (const path of wire.querySelectorAll('path')) path.setAttribute('d', d);
+  }
+
+  // Dragging a node moves it and its wire; a press that hardly moves is still a click.
+  let dashDrag = null;
+  $('dash-nodes').addEventListener('pointerdown', e => {
+    const node = e.target.closest('.dnode');
+    if (!node || e.button !== 0) return;
+    dashDrag = { node, wire: $('dash-wires').querySelector(`[data-key="${node.dataset.key}"]`), dx: e.clientX - node.offsetLeft, dy: e.clientY - node.offsetTop, x0: e.clientX, y0: e.clientY, moved: false };
+    node.setPointerCapture(e.pointerId);
+  });
+  $('dash-nodes').addEventListener('pointermove', e => {
+    if (!dashDrag) return;
+    if (!dashDrag.moved && Math.hypot(e.clientX - dashDrag.x0, e.clientY - dashDrag.y0) < 5) return;
+    dashDrag.moved = true;
+    dashDrag.node.classList.add('dragging');
+    const stage = $('dash-nodes'), w = stage.clientWidth, h = stage.clientHeight;
+    const x = Math.min(w, Math.max(0, e.clientX - dashDrag.dx)), y = Math.min(h, Math.max(0, e.clientY - dashDrag.dy));
+    placeNode(dashDrag.node, dashDrag.wire, x, y);
+    dashSpots.set(dashDrag.node.dataset.key, [x / w, y / h]);
+  });
+  const endDrag = () => {
+    if (!dashDrag) return;
+    dashDrag.node.classList.remove('dragging');
+    if (dashDrag.moved) { // the click that follows the release is not an open
+      const node = dashDrag.node;
+      node.dataset.dragged = '1';
+      setTimeout(() => delete node.dataset.dragged);
     }
+    dashDrag = null;
   };
-  setInterval(() => { renderClaude(); renderGit(); renderGitHub(); }, 15000); // keeps the "ago" times moving while nothing changes
+  $('dash-nodes').addEventListener('pointerup', endDrag);
+  $('dash-nodes').addEventListener('pointercancel', endDrag);
+
+  // The session's usual view: the Claude panel with its card open, and its terminal or window brought forward.
+  $('dash-nodes').onclick = e => {
+    const node = e.target.closest('.dnode');
+    if (node?.dataset.dragged) return delete node.dataset.dragged;
+    const session = node && claude?.sessions.find(s => s.key === node.dataset.key);
+    if (!session) return;
+    showDash(false);
+    openSession = session.key;
+    if (panel !== 'claude') showPanel('claude'); else renderClaude();
+    $('claude-body').querySelector('.card.open')?.scrollIntoView({ block: 'nearest' });
+    goToSession(session);
+  };
+  $('dashboard').onclick = () => showDash(true);
+  $('dash-close').onclick = () => showDash(false);
+
+  // Super Boss: a Claude session in its own terminal that sums up the other sessions. A second click goes back to
+  // that terminal; it is found by its tab name, which TermHost never changes.
+  const BOSS_TAB = 'Super Boss';
+  const BOSS_PROMPT = 'claude "Use the super-boss skill. Run tasks --pc and list every other Claude session on this PC: its name, state, what it is handling and since when. Then say in a few lines which sessions need me now (waiting or stuck) and which claims belong to sessions that have stopped."';
+  function openBoss() {
+    showDash(false);
+    const boss = [...terms].find(([, t]) => t.tab.querySelector('span').textContent.startsWith(BOSS_TAB + ' '));
+    if (boss) {
+      activate(boss[0]);
+      boss[1].tab.scrollIntoView();
+      focusActive();
+    } else send({ t: 'command', mode: 'new', command: BOSS_PROMPT, label: BOSS_TAB, folder: '' });
+  }
+  $('dash-core').onclick = openBoss;
+  $('dash-core').onkeydown = e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openBoss(); } };
+  $('dash').addEventListener('keydown', e => { if (e.key === 'Escape') { e.stopPropagation(); showDash(false); } });
+  new ResizeObserver(renderDash).observe($('dash-nodes'));
+  setInterval(() => { renderClaude(); renderGit(); renderGitHub(); renderDash(); }, 15000); // keeps the "ago" times moving while nothing changes
 
   // A reload of the page would end every terminal. The browser's menu offers one, and so do
   // F5 and Ctrl+R: neither is let through outside a terminal, where they belong to the shell.
@@ -1209,6 +1484,7 @@
         renderClaude();
         renderGit();
         renderGitHub();
+        renderDash();
         break;
     }
   });
